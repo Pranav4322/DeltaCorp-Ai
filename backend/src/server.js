@@ -247,6 +247,87 @@ app.post("/api/agent/debug/audit", async (req, res) => {
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
+/* ---------------------------------------------------------------------
+ * Public-facing extras for real visitors (not just the local demo
+ * buttons above): a rate-limited "generate now" trigger anyone can
+ * click, and a separate community board where visitors can post their
+ * own text without touching the AI's own official feed.
+ * ------------------------------------------------------------------- */
+
+// Simple in-memory per-agent cooldown so a public "Generate Post" button
+// can't be spammed into burning through LLM API quota/cost. Resets if the
+// process restarts, which is fine for a cooldown (not persisted state).
+const lastPublicGenerate = {};
+const GENERATE_COOLDOWN_MS = Number(process.env.GENERATE_COOLDOWN_MINUTES || 3) * 60 * 1000;
+
+// POST /api/agent/generate — public, rate-limited version of debug/tick.
+// Safe to expose to real visitors: same underlying pipeline cycle, just
+// throttled so one person can't trigger it repeatedly back-to-back.
+app.post("/api/agent/generate", async (req, res) => {
+  const { agentId } = req.body || {};
+  if (!agentId) return res.status(400).json({ error: "agentId is required" });
+  const agent = loadAgent(agentId);
+  if (!agent) return res.status(404).json({ error: "Unknown agentId" });
+
+  const now = Date.now();
+  const last = lastPublicGenerate[agentId] || 0;
+  const elapsed = now - last;
+  if (elapsed < GENERATE_COOLDOWN_MS) {
+    const waitSec = Math.ceil((GENERATE_COOLDOWN_MS - elapsed) / 1000);
+    return res.status(429).json({ error: `Please wait ${waitSec}s before generating another post.` });
+  }
+  lastPublicGenerate[agentId] = now;
+
+  db.prepare(`UPDATE agents SET next_publish_after = ? WHERE id = ?`).run(new Date(0).toISOString(), agentId);
+  await tick(agentId);
+  res.json({ ok: true });
+});
+
+// GET /api/agent/community?agentId=... — list visitor-submitted posts,
+// newest first. Kept entirely separate from /api/agent/feed (the AI's
+// official, evaluated feed).
+app.get("/api/agent/community", (req, res) => {
+  const { agentId } = req.query;
+  if (!agentId) return res.status(400).json({ error: "agentId query param is required" });
+
+  const agent = db.prepare(`SELECT id FROM agents WHERE id = ?`).get(agentId);
+  if (!agent) return res.status(404).json({ error: "Unknown agentId" });
+
+  const rows = db
+    .prepare(
+      `SELECT id, author, text, created_at as createdAt
+       FROM community_posts WHERE agent_id = ? ORDER BY created_at DESC LIMIT 100`
+    )
+    .all(agentId);
+
+  res.json({ posts: rows });
+});
+
+// POST /api/agent/community — a real visitor submits their own text.
+// Basic length/empty validation only; this is a hackathon demo feature,
+// not hardened for abuse at internet scale.
+app.post("/api/agent/community", (req, res) => {
+  const { agentId, text, author } = req.body || {};
+  if (!agentId || !text) return res.status(400).json({ error: "agentId and text are required" });
+
+  const clean = String(text).trim();
+  if (!clean) return res.status(400).json({ error: "Post text cannot be empty." });
+  if (clean.length > 500) return res.status(400).json({ error: "Keep it under 500 characters." });
+
+  const agent = db.prepare(`SELECT id FROM agents WHERE id = ?`).get(agentId);
+  if (!agent) return res.status(404).json({ error: "Unknown agentId" });
+
+  const id = uuid();
+  const createdAt = new Date().toISOString();
+  const cleanAuthor = author ? String(author).trim().slice(0, 40) : "Anonymous";
+
+  db.prepare(
+    `INSERT INTO community_posts (id, agent_id, author, text, created_at) VALUES (?, ?, ?, ?, ?)`
+  ).run(id, agentId, cleanAuthor, clean, createdAt);
+
+  res.json({ ok: true, id });
+});
+
 // SPA fallback: any non-/api GET request falls through to index.html so the
 // frontend's own client-side tab routing works on a hard refresh (only
 // relevant when the frontend is being served from here — see FRONTEND_DIR).
