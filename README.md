@@ -1,4 +1,4 @@
-# Autonomous AI Creator — Full Stack
+# DeltaCorp AI Creator
 
 Built for the **ABTalks Vibe Code Hackathon**. See [`PROMPTS.md`](./PROMPTS.md)
 for the AI usage log.
