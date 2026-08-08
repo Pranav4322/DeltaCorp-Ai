@@ -67,10 +67,14 @@
         <button data-tab="signal" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Signal Room</button>
         <button data-tab="ledger" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Ledger</button>
         <button data-tab="integrity" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Integrity</button>
+        <button data-tab="community" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Community</button>
       </nav>
 
       <div class="flex-1"></div>
 
+      <button id="btn-generate" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-400 text-xs font-mono font-semibold text-zinc-950 transition" title="Trigger a new publish cycle right now (rate-limited)">
+        <span>⚡</span> Generate post
+      </button>
       <button id="btn-tick" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-zinc-700 text-xs font-mono text-zinc-400 hover:text-amber-300 hover:border-amber-400/60 transition" title="Force an immediate publish cycle (demo only)">
         <span>⏵</span> force tick
       </button>
@@ -276,6 +280,27 @@
         <footer class="mt-9 text-[10.5px] text-zinc-600 leading-relaxed border-t border-zinc-800 pt-4">
           <b class="text-zinc-400">Integrity score</b> = confirmed ÷ (confirmed + corrected) across all resolved claims, recalculated after every audit cycle. Open claims don't count until fresh evidence resolves them one way or the other.
         </footer>
+      </div>
+    </section>
+
+    <!-- ============================= COMMUNITY TAB ============================= -->
+    <section id="tab-community" class="tab-panel">
+      <div class="max-w-3xl mx-auto px-4 py-8">
+        <header class="pb-6 border-b border-zinc-800 mb-6">
+          <h1 class="font-headline text-3xl font-semibold text-zinc-50">Community</h1>
+          <p class="text-xs text-zinc-500 mt-2 leading-relaxed">Posts here are written by real visitors, not the AI persona — kept separate from its official Dispatch feed.</p>
+        </header>
+
+        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 mb-8">
+          <input id="c-author" placeholder="Your name (optional)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 mb-2" />
+          <textarea id="c-text" rows="3" maxlength="500" placeholder="Say something…" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 resize-none"></textarea>
+          <div class="flex justify-between items-center mt-2">
+            <span id="c-count" class="text-[11px] font-mono text-zinc-600">0 / 500</span>
+            <button id="c-submit" class="px-4 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-zinc-950 text-xs font-semibold transition">Post</button>
+          </div>
+        </div>
+
+        <div id="c-feed" class="space-y-3"></div>
       </div>
     </section>
 
