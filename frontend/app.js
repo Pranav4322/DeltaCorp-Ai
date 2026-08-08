@@ -178,6 +178,15 @@ $("#resume-submit").addEventListener("click", async () => {
   }
 });
 
+$("#btn-generate").addEventListener("click", async () => {
+  if (!state.agentId) return toast("No agent yet", true);
+  try {
+    await api("/api/agent/generate", { method: "POST", body: JSON.stringify({ agentId: state.agentId }) });
+    toast("Generating a new post — refreshing…");
+    await refreshAll();
+  } catch (err) { toast(err.message, true); }
+});
+
 $("#btn-tick").addEventListener("click", async () => {
   if (!state.agentId) return toast("No agent yet", true);
   try {
@@ -203,6 +212,7 @@ const TAB_ACTIVE_CLASSES = {
   signal: "bg-cyan-400/10 text-cyan-300",
   ledger: "bg-emerald-400/10 text-emerald-300",
   integrity: "bg-violet-400/10 text-violet-300",
+  community: "bg-sky-400/10 text-sky-300",
 };
 
 $all(".tab-btn").forEach((btn) => btn.addEventListener("click", () => showTab(btn.dataset.tab)));
@@ -219,23 +229,25 @@ function showTab(tab) {
 
 /* ---------------------------- data fetch + render orchestration ---------------------------- */
 
-let cache = { status: null, feed: [], rejected: [], track: null, logs: [] };
+let cache = { status: null, feed: [], rejected: [], track: null, logs: [], community: [] };
 
 async function refreshAll() {
   if (!state.agentId) return;
   try {
-    const [status, feed, rejected, track, logs] = await Promise.all([
+    const [status, feed, rejected, track, logs, community] = await Promise.all([
       api(`/api/agent/status?agentId=${state.agentId}`),
       api(`/api/agent/feed?agentId=${state.agentId}`),
       api(`/api/agent/rejected?agentId=${state.agentId}`),
       api(`/api/agent/track-record?agentId=${state.agentId}`),
       api(`/api/agent/logs?agentId=${state.agentId}`),
+      api(`/api/agent/community?agentId=${state.agentId}`),
     ]);
-    cache = { status, feed: feed.posts || [], rejected: rejected.rejected || [], track, logs: logs.logs || [] };
+    cache = { status, feed: feed.posts || [], rejected: rejected.rejected || [], track, logs: logs.logs || [], community: community.posts || [] };
     renderDispatch();
     renderSignal();
     renderLedger();
     renderIntegrity();
+    renderCommunity();
   } catch (err) {
     console.error(err);
     toast("Failed to refresh: " + err.message, true);
@@ -538,6 +550,49 @@ function renderIntegrity() {
     </div>`;
   }).join("") || emptyNote("Nothing resolved yet.");
 }
+
+/* ---------------------------- render: Community ---------------------------- */
+
+function renderCommunity() {
+  const posts = cache.community || [];
+  $("#c-feed").innerHTML = posts.length
+    ? posts.map((p) => `
+      <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
+        <div class="flex justify-between items-center mb-1.5">
+          <span class="text-xs font-semibold text-sky-300">${esc(p.author || "Anonymous")}</span>
+          <span class="font-mono text-[10.5px] text-zinc-500">${fmtDate(p.createdAt)}</span>
+        </div>
+        <div class="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">${esc(p.text)}</div>
+      </div>`).join("")
+    : emptyNote("No community posts yet — be the first to say something.");
+}
+
+$("#c-text").addEventListener("input", () => {
+  $("#c-count").textContent = `${$("#c-text").value.length} / 500`;
+});
+
+$("#c-submit").addEventListener("click", async () => {
+  if (!state.agentId) return toast("No agent yet", true);
+  const text = $("#c-text").value.trim();
+  const author = $("#c-author").value.trim();
+  if (!text) return toast("Write something first", true);
+
+  $("#c-submit").disabled = true;
+  try {
+    await api("/api/agent/community", {
+      method: "POST",
+      body: JSON.stringify({ agentId: state.agentId, text, author }),
+    });
+    $("#c-text").value = "";
+    $("#c-count").textContent = "0 / 500";
+    toast("Posted!");
+    await refreshAll();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    $("#c-submit").disabled = false;
+  }
+});
 
 /* ---------------------------- boot ---------------------------- */
 
