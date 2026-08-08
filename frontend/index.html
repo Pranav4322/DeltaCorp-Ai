@@ -68,6 +68,7 @@
         <button data-tab="ledger" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Ledger</button>
         <button data-tab="integrity" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Integrity</button>
         <button data-tab="community" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Community</button>
+        <button data-tab="factcheck" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Fact Check</button>
       </nav>
 
       <div class="flex-1"></div>
@@ -301,6 +302,27 @@
         </div>
 
         <div id="c-feed" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ============================= FACT CHECK TAB ============================= -->
+    <section id="tab-factcheck" class="tab-panel">
+      <div class="max-w-3xl mx-auto px-4 py-8">
+        <header class="pb-6 border-b border-zinc-800 mb-6">
+          <h1 class="font-headline text-3xl font-semibold text-zinc-50">Fact Check</h1>
+          <p class="text-xs text-zinc-500 mt-2 leading-relaxed">Submit a URL — the agent fetches it and analyzes it with the same editorial rigor it applies to its own sources: summary, key claims, credibility signals, and relevance to its domain.</p>
+        </header>
+
+        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 mb-8">
+          <input id="f-author" placeholder="Your name (optional)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 mb-2" />
+          <div class="flex gap-2">
+            <input id="f-url" placeholder="https://example.com/article" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600" />
+            <button id="f-submit" class="px-4 py-2 rounded-lg bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-zinc-950 text-xs font-semibold transition whitespace-nowrap">Check URL</button>
+          </div>
+          <div id="f-loading" class="hidden text-[11px] font-mono text-zinc-500 mt-3">Fetching and analyzing… this can take a few seconds.</div>
+        </div>
+
+        <div id="f-feed" class="space-y-4"></div>
       </div>
     </section>
 
