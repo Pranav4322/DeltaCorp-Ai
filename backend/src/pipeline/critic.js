@@ -44,7 +44,7 @@ Decide:
 
 Return ONLY JSON: {"decision": "approve"|"revise"|"veto", "text": "<final or revised text, omit/empty if veto>", "notes": "<one sentence explaining the decision>"}`;
 
-  const result = await completeJSON({ system, prompt, maxTokens: 700 });
+  const result = await completeJSON({ system, prompt, maxTokens: 1500 });
 
   if (!result.decision) throw new Error("Critic returned no decision");
 
