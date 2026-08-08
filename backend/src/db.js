@@ -80,12 +80,26 @@ CREATE TABLE IF NOT EXISTS agent_log (
   created_at TEXT NOT NULL
 );
 
+-- User-submitted posts, kept in a separate table (not the agent's own
+-- "posts") so the AI's official, evaluated feed always stays 100%
+-- AI-authored, while real visitors can still contribute in a clearly
+-- separate "Community" section of the UI.
+CREATE TABLE IF NOT EXISTS community_posts (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  author TEXT,
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_posts_agent ON posts(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_rejected_agent ON rejected_topics(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_memory_agent ON memory_topics(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_log_agent ON agent_log(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_claims_agent ON claims(agent_id, status, check_after);
 CREATE INDEX IF NOT EXISTS idx_claims_post ON claims(post_id);
+CREATE INDEX IF NOT EXISTS idx_community_agent ON community_posts(agent_id, created_at);
 `);
 
 // Lightweight migration for DBs created before post_type/refers_to_post_id/
