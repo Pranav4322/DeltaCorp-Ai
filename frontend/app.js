@@ -213,6 +213,7 @@ const TAB_ACTIVE_CLASSES = {
   ledger: "bg-emerald-400/10 text-emerald-300",
   integrity: "bg-violet-400/10 text-violet-300",
   community: "bg-sky-400/10 text-sky-300",
+  factcheck: "bg-rose-400/10 text-rose-300",
 };
 
 $all(".tab-btn").forEach((btn) => btn.addEventListener("click", () => showTab(btn.dataset.tab)));
@@ -229,25 +230,30 @@ function showTab(tab) {
 
 /* ---------------------------- data fetch + render orchestration ---------------------------- */
 
-let cache = { status: null, feed: [], rejected: [], track: null, logs: [], community: [] };
+let cache = { status: null, feed: [], rejected: [], track: null, logs: [], community: [], urlChecks: [] };
 
 async function refreshAll() {
   if (!state.agentId) return;
   try {
-    const [status, feed, rejected, track, logs, community] = await Promise.all([
+    const [status, feed, rejected, track, logs, community, urlChecks] = await Promise.all([
       api(`/api/agent/status?agentId=${state.agentId}`),
       api(`/api/agent/feed?agentId=${state.agentId}`),
       api(`/api/agent/rejected?agentId=${state.agentId}`),
       api(`/api/agent/track-record?agentId=${state.agentId}`),
       api(`/api/agent/logs?agentId=${state.agentId}`),
       api(`/api/agent/community?agentId=${state.agentId}`),
+      api(`/api/agent/url-checks?agentId=${state.agentId}`),
     ]);
-    cache = { status, feed: feed.posts || [], rejected: rejected.rejected || [], track, logs: logs.logs || [], community: community.posts || [] };
+    cache = {
+      status, feed: feed.posts || [], rejected: rejected.rejected || [], track, logs: logs.logs || [],
+      community: community.posts || [], urlChecks: urlChecks.checks || [],
+    };
     renderDispatch();
     renderSignal();
     renderLedger();
     renderIntegrity();
     renderCommunity();
+    renderFactCheck();
   } catch (err) {
     console.error(err);
     toast("Failed to refresh: " + err.message, true);
@@ -591,6 +597,83 @@ $("#c-submit").addEventListener("click", async () => {
     toast(err.message, true);
   } finally {
     $("#c-submit").disabled = false;
+  }
+});
+
+/* ---------------------------- render: Fact Check ---------------------------- */
+
+const VERDICT_STYLE = {
+  "worth-covering": "bg-emerald-500/15 text-emerald-400",
+  "not-relevant": "bg-zinc-700/40 text-zinc-400",
+  "needs-caution": "bg-amber-500/15 text-amber-400",
+};
+
+function renderFactCheck() {
+  const checks = cache.urlChecks || [];
+  $("#f-feed").innerHTML = checks.length
+    ? checks.map((c) => {
+        if (c.status === "failed") {
+          return `
+          <div class="bg-zinc-900/60 border border-rose-900/50 rounded-2xl p-4">
+            <div class="flex justify-between items-center mb-1.5 gap-2 flex-wrap">
+              <a href="${esc(c.url)}" target="_blank" rel="noopener" class="text-xs text-zinc-400 hover:text-zinc-200 underline truncate max-w-[70%]">${esc(c.url)}</a>
+              <span class="font-mono text-[10.5px] text-zinc-500">${fmtDate(c.createdAt)}</span>
+            </div>
+            <div class="text-xs text-rose-400">${esc(c.error || "Check failed.")}</div>
+          </div>`;
+        }
+        const r = c.result || {};
+        const badge = VERDICT_STYLE[r.verdict] || "bg-zinc-700/40 text-zinc-400";
+        return `
+        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
+          <div class="flex justify-between items-start gap-2 mb-2 flex-wrap">
+            <div class="min-w-0">
+              <div class="text-sm font-semibold text-zinc-100 truncate">${esc(c.title || c.url)}</div>
+              <a href="${esc(c.url)}" target="_blank" rel="noopener" class="text-[11px] text-zinc-500 hover:text-zinc-300 underline truncate block">${esc(c.url)}</a>
+            </div>
+            <span class="text-[10.5px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full whitespace-nowrap ${badge}">${esc(r.verdict || "—")}</span>
+          </div>
+          <div class="text-sm text-zinc-300 leading-relaxed mb-2">${esc(r.summary || "")}</div>
+          ${r.keyClaims && r.keyClaims.length ? `
+          <div class="mb-2">
+            <div class="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">Key claims</div>
+            <ul class="list-disc list-inside text-xs text-zinc-400 space-y-0.5">${r.keyClaims.map((k) => `<li>${esc(k)}</li>`).join("")}</ul>
+          </div>` : ""}
+          ${r.credibilitySignals && r.credibilitySignals.length ? `
+          <div class="mb-2">
+            <div class="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">Credibility signals</div>
+            <ul class="list-disc list-inside text-xs text-zinc-400 space-y-0.5">${r.credibilitySignals.map((k) => `<li>${esc(k)}</li>`).join("")}</ul>
+          </div>` : ""}
+          <div class="flex justify-between items-center mt-3 pt-2 border-t border-zinc-800">
+            <span class="text-[11px] text-zinc-500 italic">${esc(r.notes || "")}</span>
+            <span class="font-mono text-[10.5px] text-zinc-500 whitespace-nowrap">relevance ${r.relevanceToDomain ?? "—"}/10 · ${esc(c.submittedBy || "Anonymous")} · ${fmtDate(c.createdAt)}</span>
+          </div>
+        </div>`;
+      }).join("")
+    : emptyNote("No URLs checked yet — paste one above.");
+}
+
+$("#f-submit").addEventListener("click", async () => {
+  if (!state.agentId) return toast("No agent yet", true);
+  const url = $("#f-url").value.trim();
+  const submittedBy = $("#f-author").value.trim();
+  if (!url) return toast("Paste a URL first", true);
+
+  $("#f-submit").disabled = true;
+  $("#f-loading").classList.remove("hidden");
+  try {
+    await api("/api/agent/check-url", {
+      method: "POST",
+      body: JSON.stringify({ agentId: state.agentId, url, submittedBy }),
+    });
+    $("#f-url").value = "";
+    toast("Checked!");
+    await refreshAll();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    $("#f-submit").disabled = false;
+    $("#f-loading").classList.add("hidden");
   }
 });
 
