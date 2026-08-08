@@ -11,7 +11,7 @@ const POLL_MS = 12000;
 
 let state = {
   agentId: localStorage.getItem(LS_KEY_AGENT) || null,
-  apiBase: localStorage.getItem(LS_KEY_API_BASE) || "",
+  apiBase: localStorage.getItem(LS_KEY_API_BASE) || "https://deltacorp-ai.onrender.com",
   activeTab: "dispatch",
   polling: null,
 };
