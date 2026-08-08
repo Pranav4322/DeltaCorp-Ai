@@ -2,12 +2,14 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const axios = require("axios");
 const { v4: uuid } = require("uuid");
 
 const db = require("./db");
 const { buildPersona } = require("./persona");
 const { startAgentScheduler, resumeAllAgents, tick, auditTick, loadAgent } = require("./scheduler");
 const { recentLogs } = require("./logger");
+const { completeJSON } = require("./llm");
 
 const app = express();
 app.use(cors()); // frontend/ is a separate folder and may be served from a different origin
@@ -326,6 +328,164 @@ app.post("/api/agent/community", (req, res) => {
   ).run(id, agentId, cleanAuthor, clean, createdAt);
 
   res.json({ ok: true, id });
+});
+
+/* ---------------------------------------------------------------------
+ * URL fact-check: a visitor submits a link, we fetch it, strip it down
+ * to plain text, and ask the LLM to analyze it (summary, key claims,
+ * credibility signals, relevance to this persona's domain). Result is
+ * stored and returned synchronously.
+ * ------------------------------------------------------------------- */
+
+const lastUrlCheck = {};
+const URL_CHECK_COOLDOWN_MS = Number(process.env.URL_CHECK_COOLDOWN_SECONDS || 20) * 1000;
+
+function extractTitleAndText(html) {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const title = titleMatch ? titleMatch[1].replace(/\s+/g, " ").trim() : null;
+
+  const withoutJunk = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ");
+  const text = withoutJunk
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return { title, text: text.slice(0, 6000) };
+}
+
+// GET /api/agent/url-checks?agentId=... — browse past checks, newest first.
+app.get("/api/agent/url-checks", (req, res) => {
+  const { agentId } = req.query;
+  if (!agentId) return res.status(400).json({ error: "agentId query param is required" });
+
+  const agent = db.prepare(`SELECT id FROM agents WHERE id = ?`).get(agentId);
+  if (!agent) return res.status(404).json({ error: "Unknown agentId" });
+
+  const rows = db
+    .prepare(
+      `SELECT id, url, submitted_by as submittedBy, title, result_json as resultJson,
+              status, error, created_at as createdAt
+       FROM url_checks WHERE agent_id = ? ORDER BY created_at DESC LIMIT 50`
+    )
+    .all(agentId);
+
+  res.json({
+    checks: rows.map((r) => ({
+      id: r.id,
+      url: r.url,
+      submittedBy: r.submittedBy,
+      title: r.title,
+      status: r.status,
+      error: r.error,
+      createdAt: r.createdAt,
+      result: r.resultJson ? JSON.parse(r.resultJson) : null,
+    })),
+  });
+});
+
+// POST /api/agent/check-url — fetch + analyze a submitted URL, synchronously.
+app.post("/api/agent/check-url", async (req, res) => {
+  const { agentId, url, submittedBy } = req.body || {};
+  if (!agentId || !url) return res.status(400).json({ error: "agentId and url are required" });
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("bad protocol");
+  } catch {
+    return res.status(400).json({ error: "Please submit a valid http(s) URL." });
+  }
+
+  const agent = loadAgent(agentId);
+  if (!agent) return res.status(404).json({ error: "Unknown agentId" });
+
+  const now = Date.now();
+  const last = lastUrlCheck[agentId] || 0;
+  if (now - last < URL_CHECK_COOLDOWN_MS) {
+    const waitSec = Math.ceil((URL_CHECK_COOLDOWN_MS - (now - last)) / 1000);
+    return res.status(429).json({ error: `Please wait ${waitSec}s before checking another URL.` });
+  }
+  lastUrlCheck[agentId] = now;
+
+  const id = uuid();
+  const createdAt = new Date().toISOString();
+  const cleanSubmittedBy = submittedBy ? String(submittedBy).trim().slice(0, 40) : "Anonymous";
+
+  let pageTitle = null;
+  let pageText = "";
+  try {
+    const resp = await axios.get(parsed.toString(), {
+      timeout: 12000,
+      maxRedirects: 5,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; DeltaCorpAI-URLCheck/1.0)" },
+      responseType: "text",
+    });
+    const extracted = extractTitleAndText(String(resp.data));
+    pageTitle = extracted.title;
+    pageText = extracted.text;
+  } catch (err) {
+    const errMsg = `Couldn't fetch that URL: ${err.message}`;
+    db.prepare(
+      `INSERT INTO url_checks (id, agent_id, url, submitted_by, title, result_json, status, error, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'failed', ?, ?)`
+    ).run(id, agentId, parsed.toString(), cleanSubmittedBy, null, "{}", errMsg, createdAt);
+    return res.status(502).json({ error: errMsg });
+  }
+
+  if (!pageText || pageText.length < 100) {
+    const errMsg = "Fetched the page but couldn't extract readable article text from it.";
+    db.prepare(
+      `INSERT INTO url_checks (id, agent_id, url, submitted_by, title, result_json, status, error, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'failed', ?, ?)`
+    ).run(id, agentId, parsed.toString(), cleanSubmittedBy, pageTitle, "{}", errMsg, createdAt);
+    return res.status(422).json({ error: errMsg });
+  }
+
+  const persona = agent.persona;
+  const system = persona.systemPrompt();
+  const prompt = `A visitor submitted this URL for you to check as the EDITOR persona, using the same rigor you use for your own sourcing.
+
+URL: ${parsed.toString()}
+PAGE TITLE: ${pageTitle || "(no title found)"}
+PAGE TEXT (truncated): ${pageText}
+
+Analyze it and return ONLY a JSON object with EXACTLY these fields:
+{
+  "summary": "<2-3 sentence neutral summary of what the article actually says>",
+  "keyClaims": ["<claim 1>", "<claim 2>", "..."],
+  "credibilitySignals": ["<short note on sourcing, evidence, tone, dates, etc>", "..."],
+  "relevanceToDomain": <0-10 int, how relevant this is to your domain>,
+  "verdict": "<one of: worth-covering, not-relevant, needs-caution>",
+  "notes": "<one sentence explaining the verdict>"
+}`;
+
+  let result;
+  try {
+    result = await completeJSON({ system, prompt, maxTokens: 1200 });
+  } catch (err) {
+    const errMsg = `Fetched the article, but analysis failed: ${err.message}`;
+    db.prepare(
+      `INSERT INTO url_checks (id, agent_id, url, submitted_by, title, result_json, status, error, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'failed', ?, ?)`
+    ).run(id, agentId, parsed.toString(), cleanSubmittedBy, pageTitle, "{}", errMsg, createdAt);
+    return res.status(502).json({ error: errMsg });
+  }
+
+  db.prepare(
+    `INSERT INTO url_checks (id, agent_id, url, submitted_by, title, result_json, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'done', ?)`
+  ).run(id, agentId, parsed.toString(), cleanSubmittedBy, pageTitle, JSON.stringify(result), createdAt);
+
+  res.json({ ok: true, id, url: parsed.toString(), title: pageTitle, result });
 });
 
 // SPA fallback: any non-/api GET request falls through to index.html so the
