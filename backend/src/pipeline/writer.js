@@ -54,7 +54,7 @@ Write:
 
 Return ONLY a JSON object: {"text": "...", "rationale": "...", "topicKey": "...", "entities": ["...", "..."], "claims": [{"text": "...", "checkAfterHours": 24}]}`;
 
-  const draft = await completeJSON({ system, prompt, maxTokens: 900 });
+  const draft = await completeJSON({ system, prompt, maxTokens: 2000 });
 
   if (!draft.text || !draft.rationale) {
     throw new Error("Writer returned incomplete draft");
