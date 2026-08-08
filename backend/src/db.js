@@ -93,6 +93,23 @@ CREATE TABLE IF NOT EXISTS community_posts (
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
+-- Visitor-submitted URLs get fetched, analyzed by the LLM (summary, key
+-- claims, credibility signals, relevance to the persona's domain), and
+-- the result stored here so it can be shown back immediately and browsed
+-- later — a lightweight "fact check this article" utility.
+CREATE TABLE IF NOT EXISTS url_checks (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  url TEXT NOT NULL,
+  submitted_by TEXT,
+  title TEXT,
+  result_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'done',
+  error TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_posts_agent ON posts(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_rejected_agent ON rejected_topics(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_memory_agent ON memory_topics(agent_id, created_at);
@@ -100,6 +117,7 @@ CREATE INDEX IF NOT EXISTS idx_log_agent ON agent_log(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_claims_agent ON claims(agent_id, status, check_after);
 CREATE INDEX IF NOT EXISTS idx_claims_post ON claims(post_id);
 CREATE INDEX IF NOT EXISTS idx_community_agent ON community_posts(agent_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_urlchecks_agent ON url_checks(agent_id, created_at);
 `);
 
 // Lightweight migration for DBs created before post_type/refers_to_post_id/
