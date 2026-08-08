@@ -89,7 +89,7 @@ claim. Default to "unresolved" rather than guessing.
 
 Return ONLY JSON: {"verdict": "confirmed"|"corrected"|"unresolved", "note": "<one sentence, specific, citing what the evidence showed or the lack of it>", "supportingIndices": [<int>, ...evidence array indices above that this verdict is actually based on, empty array if none or if unresolved]}`;
 
-  const result = await completeJSON({ system, prompt, maxTokens: 400 });
+  const result = await completeJSON({ system, prompt, maxTokens: 1000 });
   const supportingUrls = Array.isArray(result.supportingIndices)
     ? result.supportingIndices.map((i) => fresh[i]?.url).filter(Boolean)
     : [];
@@ -115,7 +115,7 @@ Never use: ${persona.styleFingerprint.avoid.join(", ")}.
 
 Return ONLY JSON: {"text": "..."}`;
 
-  const draft = await completeJSON({ system, prompt, maxTokens: 300 });
+  const draft = await completeJSON({ system, prompt, maxTokens: 1000 });
   if (!draft.text) throw new Error("Auditor resolution post came back empty");
   return draft.text.trim();
 }
