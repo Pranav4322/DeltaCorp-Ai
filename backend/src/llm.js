@@ -116,20 +116,65 @@ async function complete({ system, prompt, maxTokens = 1000 }) {
 }
 
 /**
+ * Models frequently emit literal newline/tab characters inside JSON string
+ * values (e.g. paragraph breaks in a "text" field) instead of the escaped
+ * \n / \t sequences strict JSON requires. A raw newline inside a string
+ * makes JSON.parse throw "Unterminated string" the moment it hits that
+ * line break. This walks the text char-by-char, tracking whether we're
+ * inside a quoted string (respecting escape sequences), and escapes any
+ * raw newline/tab/carriage-return it finds ONLY while inside a string —
+ * whitespace outside strings (formatting between fields) is left alone.
+ */
+function sanitizeJsonWhitespace(text) {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (inString) {
+      if (escaped) {
+        result += char;
+        escaped = false;
+      } else if (char === "\\") {
+        result += char;
+        escaped = true;
+      } else if (char === '"') {
+        result += char;
+        inString = false;
+      } else if (char === "\n") {
+        result += "\\n";
+      } else if (char === "\r") {
+        result += "\\r";
+      } else if (char === "\t") {
+        result += "\\t";
+      } else {
+        result += char;
+      }
+    } else {
+      if (char === '"') inString = true;
+      result += char;
+    }
+  }
+  return result;
+}
+
+/**
  * Calls the model and expects strict JSON back. Strips markdown fences
- * defensively and throws with the raw text attached if parsing fails, so
- * callers can log/retry instead of silently crashing the scheduler tick.
+ * defensively, sanitizes stray raw newlines inside string values, and
+ * throws with the raw text attached if parsing still fails, so callers
+ * can log/retry instead of silently crashing the scheduler tick.
  */
 async function completeJSON({ system, prompt, maxTokens = 1000 }) {
   const raw = await complete({
-    system: `${system}\n\nRespond with ONLY valid JSON. No markdown fences, no preamble, no explanation outside the JSON object.`,
+    system: `${system}\n\nRespond with ONLY valid JSON. No markdown fences, no preamble, no explanation outside the JSON object. Any line breaks within a string value MUST be written as the two characters \\n, never as an actual newline.`,
     prompt,
     maxTokens,
   });
 
   const cleaned = raw.replace(/```json|```/g, "").trim();
+  const sanitized = sanitizeJsonWhitespace(cleaned);
   try {
-    return JSON.parse(cleaned);
+    return JSON.parse(sanitized);
   } catch (err) {
     const e = new Error(`Failed to parse JSON from model: ${err.message}`);
     e.raw = raw;
