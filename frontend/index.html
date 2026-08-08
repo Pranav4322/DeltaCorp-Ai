@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autonomous AI Creator — Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS (CDN build — no build step needed for this static frontend) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ["Inter", "ui-sans-serif", "system-ui"],
+          mono: ["IBM Plex Mono", "ui-monospace", "monospace"],
+          serif: ["Newsreader", "ui-serif", "Georgia", "serif"],
+        },
+        colors: {
+          accent: {
+            dispatch: "#D99B3F",
+            signal: "#4FB8C4",
+            ledger: "#34D399",
+            integrity: "#A78BFA",
+          },
+        },
+        boxShadow: {
+          glow: "0 0 40px -8px rgba(167,139,250,0.35)",
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  /* The handful of things Tailwind utilities can't express directly. */
+  html { scroll-behavior: smooth; }
+  body { font-feature-settings: "tnum" 1; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 8px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .font-headline { font-family: 'Newsreader', serif; }
+  .skeleton { background: linear-gradient(90deg,#18181b 25%,#27272a 37%,#18181b 63%); background-size: 400% 100%; animation: skel 1.4s ease infinite; }
+  @keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  input[type=text]:focus, input:focus, select:focus { outline: none; }
+</style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen antialiased">
+
+<div id="app-shell" class="min-h-screen flex flex-col">
+
+  <!-- ============================= TOPBAR ============================= -->
+  <header class="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2 flex-wrap">
+      <div class="flex items-center gap-2 mr-4">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center text-sm">⚡</div>
+        <span class="font-mono text-xs text-zinc-400 tracking-wide"><b class="text-zinc-100 font-semibold">Autonomous AI Creator</b> · control room</span>
+      </div>
+
+      <nav class="flex items-center gap-1 bg-zinc-900/70 border border-zinc-800 rounded-xl p-1" id="tab-nav">
+        <button data-tab="dispatch" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Dispatch</button>
+        <button data-tab="signal" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Signal Room</button>
+        <button data-tab="ledger" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Ledger</button>
+        <button data-tab="integrity" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition">Integrity</button>
+      </nav>
+
+      <div class="flex-1"></div>
+
+      <button id="btn-tick" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-zinc-700 text-xs font-mono text-zinc-400 hover:text-amber-300 hover:border-amber-400/60 transition" title="Force an immediate publish cycle (demo only)">
+        <span>⏵</span> force tick
+      </button>
+      <button id="btn-audit" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-zinc-700 text-xs font-mono text-zinc-400 hover:text-emerald-300 hover:border-emerald-400/60 transition" title="Force an immediate claim audit (demo only)">
+        <span>✓</span> force audit
+      </button>
+      <button id="btn-settings" class="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 transition" title="Settings">⚙</button>
+
+      <div id="agent-pill" class="flex items-center gap-2 font-mono text-[11px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
+        <span id="agent-dot" class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+        <span id="agent-pill-text">no agent</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================= SETTINGS MODAL ============================= -->
+  <div id="settings-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+      <h2 class="text-sm font-semibold mb-1">Backend connection</h2>
+      <p class="text-xs text-zinc-500 mb-4 leading-relaxed">This frontend is a standalone static app. Point it at any running instance of the backend API (same origin by default).</p>
+      <label class="block text-[11px] font-mono uppercase tracking-wide text-zinc-500 mb-1.5">API base URL</label>
+      <input id="settings-api-base" type="text" placeholder="http://localhost:3000 (leave blank for same origin)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 mb-4" />
+      <div class="flex gap-2 justify-end">
+        <button id="settings-cancel" class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-100">Cancel</button>
+        <button id="settings-save" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-violet-500 text-zinc-950 hover:bg-violet-400">Save & reconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= INIT SCREEN ============================= -->
+  <main id="main" class="flex-1">
+    <div id="init-screen" class="hidden max-w-lg mx-auto px-6 py-16">
+      <div class="mb-8">
+        <h1 class="text-2xl font-semibold mb-2">Initialize your persona</h1>
+        <p class="text-sm text-zinc-400 leading-relaxed">This calls <code class="text-violet-300 bg-zinc-900 px-1.5 py-0.5 rounded">POST /api/agent/init</code> exactly once. The backend then runs the Scout → Curator → Writer → Critic → Auditor pipeline on its own jittered schedule — no further input needed.</p>
+      </div>
+
+      <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div>
+          <label class="block text-[11px] font-mono uppercase tracking-wide text-zinc-500 mb-1.5">Persona name</label>
+          <input id="init-name" placeholder="e.g. Ada" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-mono uppercase tracking-wide text-zinc-500 mb-1.5">Domain</label>
+          <select id="init-domain" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100">
+            <option value="AI Security">AI Security</option>
+            <option value="Machine Learning Engineering">Machine Learning Engineering</option>
+            <option value="AI Product">AI Product</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <input id="init-domain-custom" placeholder="Custom domain name" class="hidden mt-2 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600" />
+        </div>
+        <button id="init-submit" class="w-full py-2.5 rounded-lg bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-zinc-950 font-semibold text-sm transition">Initialize agent</button>
+        <div class="text-xs text-rose-400 font-mono hidden" id="init-err"></div>
+      </div>
+
+      <div class="flex items-center gap-3 my-6 text-[11px] font-mono uppercase tracking-wide text-zinc-600">
+        <div class="flex-1 h-px bg-zinc-800"></div> or resume an existing agent <div class="flex-1 h-px bg-zinc-800"></div>
+      </div>
+
+      <div class="flex gap-2">
+        <input id="resume-id" placeholder="Paste an existing agentId…" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600" />
+        <button id="resume-submit" class="px-4 py-2.5 rounded-lg border border-zinc-700 text-sm text-zinc-200 hover:border-zinc-500 transition">Resume</button>
+      </div>
+    </div>
+
+    <!-- ============================= DISPATCH TAB ============================= -->
+    <section id="tab-dispatch" class="tab-panel">
+      <div class="max-w-3xl mx-auto px-4 py-8">
+        <header class="pb-6 border-b border-zinc-800 mb-2">
+          <div class="flex justify-between items-end flex-wrap gap-3">
+            <div>
+              <h1 id="d-title" class="font-headline text-3xl font-semibold text-zinc-50">—</h1>
+              <div id="d-sub" class="font-mono text-[11px] text-amber-400 tracking-widest uppercase mt-1.5">—</div>
+            </div>
+            <div class="font-mono text-[11px] text-zinc-500 text-right leading-relaxed">
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 shadow-[0_0_0_3px_rgba(217,155,63,0.15)]"></span>
+              <span id="d-live">—</span>
+            </div>
+          </div>
+          <div id="d-transmission" class="flex flex-wrap mt-5 font-mono text-[10px] text-zinc-500 uppercase tracking-wider"></div>
+        </header>
+        <div id="d-feed" class="divide-y divide-zinc-800"></div>
+      </div>
+    </section>
+
+    <!-- ============================= SIGNAL ROOM TAB ============================= -->
+    <section id="tab-signal" class="tab-panel">
+      <div class="max-w-6xl mx-auto px-4 py-8">
+        <header class="flex justify-between items-center mb-6 flex-wrap gap-3">
+          <div>
+            <h1 class="text-base font-semibold">Signal room</h1>
+            <div id="s-meta" class="font-mono text-[11px] text-zinc-500">—</div>
+          </div>
+          <div class="flex items-center gap-2 font-mono text-[11px] text-cyan-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_0_4px_rgba(79,184,196,0.15)]"></span>
+            <span id="s-status">idle</span>
+          </div>
+        </header>
+
+        <div id="s-rail" class="flex flex-wrap bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 mb-5 gap-y-4"></div>
+
+        <div class="grid lg:grid-cols-[1.3fr_1fr] gap-4">
+          <div class="flex flex-col gap-4">
+            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Live feed</h2>
+              <div id="s-feed" class="divide-y divide-zinc-800"></div>
+            </div>
+            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Declined this cycle</h2>
+              <div id="s-declined" class="divide-y divide-zinc-800"></div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-4">
+            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Track record</h2>
+              <div class="flex items-center gap-4">
+                <svg width="72" height="72" viewBox="0 0 72 72" class="shrink-0">
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="#27272a" stroke-width="7"/>
+                  <circle id="s-gauge-arc" cx="36" cy="36" r="30" fill="none" stroke="#4FB8C4" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 188.5" transform="rotate(-90 36 36)"/>
+                </svg>
+                <div>
+                  <div class="text-2xl font-mono font-semibold" id="s-accuracy">—</div>
+                  <div class="text-[11px] text-zinc-500">accuracy to date</div>
+                </div>
+              </div>
+              <div id="s-breakdown" class="flex gap-3 mt-4 font-mono text-[11px] flex-wrap"></div>
+            </div>
+            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Pipeline log</h2>
+              <div id="s-log" class="font-mono text-[11.5px] leading-loose text-zinc-500 max-h-64 overflow-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= LEDGER TAB ============================= -->
+    <section id="tab-ledger" class="tab-panel">
+      <div class="max-w-4xl mx-auto px-4 py-8">
+        <header class="flex justify-between items-end flex-wrap gap-3 pb-4 border-b-2 border-emerald-900/60">
+          <div>
+            <h1 class="font-mono font-semibold text-lg uppercase tracking-wide">Ledger of Record</h1>
+            <div id="l-sub" class="font-mono text-[11px] text-zinc-500 mt-1">—</div>
+          </div>
+          <div id="l-book" class="font-mono text-[11px] text-zinc-500 text-right leading-relaxed">—</div>
+        </header>
+
+        <div class="font-mono text-xs tracking-widest uppercase text-emerald-500 mt-8 mb-3 pb-1.5 border-b border-zinc-800">Published entries</div>
+        <table class="w-full text-sm">
+          <thead><tr class="text-left font-mono text-[10.5px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+            <th class="py-2 pr-2 w-24">Date</th><th class="py-2 pr-2 w-20">Type</th><th class="py-2">Entry</th>
+          </tr></thead>
+          <tbody id="l-posts" class="divide-y divide-zinc-800/70"></tbody>
+        </table>
+
+        <div class="font-mono text-xs tracking-widest uppercase text-emerald-500 mt-10 mb-3 pb-1.5 border-b border-zinc-800">Track record — claims made and settled</div>
+        <table class="w-full text-sm">
+          <thead><tr class="text-left font-mono text-[10.5px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+            <th class="py-2 pr-2 w-20">Made</th><th class="py-2 pr-2">Claim</th><th class="py-2 pr-2 w-28">Verdict</th><th class="py-2 w-20">Settled</th>
+          </tr></thead>
+          <tbody id="l-claims" class="divide-y divide-zinc-800/70"></tbody>
+        </table>
+
+        <div id="l-balance" class="flex justify-end gap-8 mt-2 pt-4 border-t-2 border-emerald-900/60 font-mono flex-wrap"></div>
+
+        <div class="font-mono text-xs tracking-widest uppercase text-emerald-500 mt-10 mb-3 pb-1.5 border-b border-zinc-800">Declined this cycle — with reason shown</div>
+        <div id="l-declined" class="divide-y divide-zinc-800/70"></div>
+      </div>
+    </section>
+
+    <!-- ============================= INTEGRITY TAB ============================= -->
+    <section id="tab-integrity" class="tab-panel">
+      <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="flex justify-between items-start flex-wrap gap-3 pb-6 border-b border-zinc-800">
+          <div>
+            <div id="i-id" class="text-[11px] tracking-[0.2em] uppercase text-violet-400 font-mono mb-2">Integrity report</div>
+            <h1 class="font-headline text-3xl font-medium">Track record</h1>
+            <div class="text-xs text-zinc-500 mt-2 max-w-md leading-relaxed">Cumulative accuracy of every falsifiable claim this persona has made and stood behind.</div>
+          </div>
+          <div id="i-range" class="text-[11px] text-zinc-500 text-right leading-relaxed font-mono">—</div>
+        </div>
+
+        <div class="flex items-end gap-8 flex-wrap py-8">
+          <div id="i-score" class="font-headline text-7xl font-medium text-violet-300" style="text-shadow:0 0 40px rgba(167,139,250,.35)">—</div>
+          <div class="pb-3">
+            <div class="text-[11px] tracking-wide uppercase text-zinc-500">Integrity score</div>
+            <div id="i-delta" class="text-sm text-emerald-400 mt-1.5 font-medium">&nbsp;</div>
+          </div>
+          <div id="i-tallies" class="ml-auto flex gap-3 flex-wrap"></div>
+        </div>
+
+        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 shadow-glow">
+          <div class="text-[10.5px] tracking-wide uppercase text-zinc-500 mb-2">Score after each resolved claim, plotted in order</div>
+          <svg width="100%" height="270" viewBox="0 0 900 270" id="i-chart"></svg>
+        </div>
+
+        <div class="mt-10">
+          <div class="text-[10.5px] tracking-wide uppercase text-zinc-500 mb-3 pb-2 border-b border-zinc-800">Resolution log — every claim, in order</div>
+          <div id="i-events"></div>
+        </div>
+
+        <footer class="mt-9 text-[10.5px] text-zinc-600 leading-relaxed border-t border-zinc-800 pt-4">
+          <b class="text-zinc-400">Integrity score</b> = confirmed ÷ (confirmed + corrected) across all resolved claims, recalculated after every audit cycle. Open claims don't count until fresh evidence resolves them one way or the other.
+        </footer>
+      </div>
+    </section>
+
+    <div class="text-center py-16 text-zinc-600 font-mono text-xs hidden" id="global-loading">loading…</div>
+  </main>
+</div>
+
+<div id="toast" class="fixed bottom-5 right-5 z-[200] bg-zinc-900 border border-emerald-500 text-zinc-100 font-mono text-xs px-4 py-2.5 rounded-lg opacity-0 translate-y-2 pointer-events-none transition-all"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

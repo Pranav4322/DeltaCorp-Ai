@@ -1,0 +1,53 @@
+# One-click deploy target for Render (https://render.com).
+#
+# Why Render and not Vercel: this backend is a long-running Node process
+# (node-cron keeps ticking in the background, better-sqlite3 keeps a local
+# file open) — not a stateless serverless function. Vercel's serverless
+# model would reset the scheduler and the database on every invocation.
+# Render (or Railway/Fly.io/a plain VM) runs it as a persistent service,
+# which is what the autonomous publishing loop needs.
+#
+# Usage: in the Render dashboard, "New +" -> "Blueprint", point it at this
+# repo, and it will pick up this file automatically. You'll be prompted to
+# fill in ANTHROPIC_API_KEY (marked sync: false below).
+
+services:
+  - type: web
+    name: autonomous-ai-creator
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-6
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-3.5-sonnet
+      - key: DATA_DIR
+        value: /var/data
+      - key: SCHEDULE_CRON
+        value: "*/20 * * * *"
+      - key: MIN_GAP_MINUTES
+        value: "90"
+      - key: MAX_GAP_MINUTES
+        value: "240"
+      - key: MIN_AUDIT_GAP_MINUTES
+        value: "60"
+      - key: MAX_AUDIT_GAP_MINUTES
+        value: "150"
+      - key: PUBLISH_SCORE_THRESHOLD
+        value: "6.5"
+    disk:
+      name: agent-data
+      mountPath: /var/data
+      sizeGB: 1

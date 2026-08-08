@@ -1,0 +1,23 @@
+{
+  "name": "autonomous-ai-creator",
+  "version": "1.0.0",
+  "description": "Autonomous AI + Technology persona agent — discovers topics, exercises editorial judgment, writes in a consistent voice, remembers what it has published, and publishes over time without human input.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed:check": "node -e \"require('./src/db')\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "axios": "^1.7.9",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "rss-parser": "^3.13.0",
+    "uuid": "^9.0.1"
+  }
+}
