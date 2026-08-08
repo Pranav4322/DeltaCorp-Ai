@@ -76,6 +76,19 @@ automatically falls through to the next if a call fails (bad key, rate
 limit, transient outage), with no code changes needed. See
 `backend/.env.example` for the full list of provider/model env vars.
 
+Where to get each key (all free-tier / no-card-required to start):
+- **Anthropic** — [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+  (this is the primary provider — first in the fallback order)
+- **Gemini** — [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+  (already configured in this repo's `.env`; current free-tier model is
+  `gemini-2.5-flash` — `gemini-2.0-flash` was retired June 2026)
+- **OpenRouter** — [openrouter.ai/keys](https://openrouter.ai/keys)
+  (already configured in this repo's `.env` as the third fallback)
+
+You don't need all three — one working key is enough to run — but having
+two or three means a rate limit or outage on one provider mid-evaluation
+doesn't stop the agent from publishing.
+
 **Never commit real API keys.** `.env` is already gitignored — keep keys
 there locally, and enter them directly into your host's dashboard (e.g.
 Render's env var UI) when deploying. A public hackathon repo with a key
@@ -100,6 +113,18 @@ the database on every request.
 4. Your live demo URL is the Render service URL — `POST /api/agent/init`
    and `GET /api/agent/feed` work at `<that-url>/api/agent/...`, and the
    Tailwind frontend is served at the root of the same URL.
+
+**Important — Render's free tier sleeps after ~15 minutes idle**, which
+would pause the in-process scheduler along with it (breaking "continues
+publishing without human input" if nothing pings it for a while). Two
+layers guard against this, both already wired in:
+- `backend/src/server.js` self-pings its own `/health` every 10 minutes
+  using Render's auto-populated `RENDER_EXTERNAL_URL` — no config needed.
+- As a second, independent layer, set up a free external pinger too: at
+  [cron-job.org](https://cron-job.org), create a job hitting
+  `GET <your-render-url>/health` every 10 minutes. This also means the
+  service is warm and fast for the evaluator's first poll rather than
+  eating a cold-start on it.
 
 **Railway / Fly.io / a plain VM** work the same way: `cd backend`, install,
 `npm start`, expose the port, set `ANTHROPIC_API_KEY` (and optionally

@@ -87,9 +87,13 @@ Judge, strictly from the fresh evidence above, whether the claim has been:
 Be conservative: only pick "confirmed" or "corrected" if the evidence actually speaks to this specific
 claim. Default to "unresolved" rather than guessing.
 
-Return ONLY JSON: {"verdict": "confirmed"|"corrected"|"unresolved", "note": "<one sentence, specific, citing what the evidence showed or the lack of it>"}`;
+Return ONLY JSON: {"verdict": "confirmed"|"corrected"|"unresolved", "note": "<one sentence, specific, citing what the evidence showed or the lack of it>", "supportingIndices": [<int>, ...evidence array indices above that this verdict is actually based on, empty array if none or if unresolved]}`;
 
-  return completeJSON({ system, prompt, maxTokens: 400 });
+  const result = await completeJSON({ system, prompt, maxTokens: 400 });
+  const supportingUrls = Array.isArray(result.supportingIndices)
+    ? result.supportingIndices.map((i) => fresh[i]?.url).filter(Boolean)
+    : [];
+  return { ...result, supportingUrls };
 }
 
 /** Drafts and publishes the short public follow-up/correction post for a resolved claim. */
@@ -132,7 +136,7 @@ async function runAudit(agent) {
   }
 
   log(agent.id, "auditor", `Re-checking claim: "${claim.claimText}"`);
-  const { verdict, note } = await judgeClaim(persona, claim);
+  const { verdict, note, supportingUrls } = await judgeClaim(persona, claim);
 
   if (verdict !== "confirmed" && verdict !== "corrected") {
     requeueClaim(claim.id, 24);
@@ -149,6 +153,14 @@ async function runAudit(agent) {
       ? `Follow-up: re-checked a prior prediction against fresh evidence and it held up. ${note}`
       : `Correction: re-checked a prior prediction against fresh evidence and it did not hold up. ${note}`;
 
+  // Fall back to the original post's source(s) if the model didn't point to
+  // specific fresh evidence — every published post must carry at least one
+  // source per the spec, and the original claim's source is still relevant
+  // context for a confirmation/correction of it either way.
+  const sources = supportingUrls && supportingUrls.length ? supportingUrls : JSON.parse(
+    db.prepare(`SELECT sources_json FROM posts WHERE id = ?`).get(claim.postId)?.sources_json || "[]"
+  );
+
   db.prepare(
     `INSERT INTO posts (id, agent_id, text, rationale, sources_json, topic_key, post_type, refers_to_post_id, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -157,7 +169,7 @@ async function runAudit(agent) {
     agent.id,
     text,
     rationale,
-    JSON.stringify([]),
+    JSON.stringify(sources),
     `audit-${claim.id}`,
     verdict === "confirmed" ? "confirmation" : "correction",
     claim.postId,
@@ -167,7 +179,7 @@ async function runAudit(agent) {
   resolveClaim(claim.id, { status: verdict, resolutionNote: note, resolutionPostId: postId });
   log(agent.id, "auditor", `Published ${verdict} post ${postId} for claim ${claim.id}.`);
 
-  return { id: postId, text, rationale, sources: [], createdAt };
+  return { id: postId, text, rationale, sources, createdAt };
 }
 
 module.exports = { runAudit, findDueClaim, judgeClaim };

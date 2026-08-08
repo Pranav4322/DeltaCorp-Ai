@@ -261,3 +261,34 @@ resumeAllAgents();
 app.listen(PORT, () => {
   console.log(`Autonomous AI Creator backend listening on port ${PORT}`);
 });
+
+/**
+ * Keep-alive self-ping.
+ *
+ * Render's free web service tier spins the process down after ~15 minutes
+ * with no inbound HTTP traffic. If that happens mid-evaluation, node-cron
+ * (and every in-memory scheduler timer in scheduler.js) dies with it —
+ * publishing would silently stop until the evaluator's next /feed poll
+ * cold-starts the process again, which breaks "continues publishing over
+ * time without additional human input."
+ *
+ * Render automatically sets RENDER_EXTERNAL_URL to the service's public
+ * URL, so this needs no extra config on Render itself. It's a no-op
+ * locally (the env var won't be set). This is a second, redundant layer —
+ * still set up an external pinger (e.g. cron-job.org hitting /health every
+ * 10 min) for real belt-and-suspenders, since a platform can in principle
+ * ignore self-traffic for idle detection.
+ */
+const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL || process.env.KEEP_ALIVE_URL;
+if (KEEP_ALIVE_URL) {
+  const axios = require("axios");
+  const INTERVAL_MS = 10 * 60 * 1000; // 10 minutes — comfortably under Render's 15-minute idle window
+  setInterval(() => {
+    axios.get(`${KEEP_ALIVE_URL}/health`, { timeout: 8000 }).catch((err) => {
+      console.error("[keep-alive] self-ping failed:", err.message);
+    });
+  }, INTERVAL_MS);
+  console.log(`[keep-alive] Self-ping enabled every ${INTERVAL_MS / 60000}m against ${KEEP_ALIVE_URL}/health`);
+} else {
+  console.log("[keep-alive] KEEP_ALIVE_URL/RENDER_EXTERNAL_URL not set — self-ping disabled (fine for local dev).");
+}

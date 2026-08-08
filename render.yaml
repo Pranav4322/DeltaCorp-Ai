@@ -28,7 +28,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.0-flash
+        value: gemini-2.5-flash
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
