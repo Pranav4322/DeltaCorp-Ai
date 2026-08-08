@@ -59,7 +59,7 @@ ${candidateList}
 Return a JSON array, one object per candidate, in the same order, each with EXACTLY these fields:
 {"index": <int>, "novelty": <0-10>, "relevance": <0-10>, "verifiability": <0-10>, "timeliness": <0-10>, "reason": "<one sentence, specific to this candidate>"}`;
 
-  const scored = await completeJSON({ system, prompt, maxTokens: 2000 });
+  const scored = await completeJSON({ system, prompt, maxTokens: 4000 });
 
   if (!Array.isArray(scored)) {
     throw new Error("Curator did not return an array");
