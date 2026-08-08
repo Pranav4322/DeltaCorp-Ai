@@ -514,7 +514,9 @@ function renderIntegrity() {
     svg += `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(c.score).toFixed(1)}" r="${isRed ? 6.5 : 5.5}" fill="#09090b" stroke="${isRed ? "#FB7185" : "#34D399"}" stroke-width="3" ${isRed ? 'filter="url(#glow)"' : ""}/>`;
     if (isRed) svg += `<text x="${xFor(i).toFixed(1)}" y="${(yFor(c.score) - 17).toFixed(1)}" fill="#FB7185" font-size="9.5" text-anchor="middle" font-weight="500">corrected</text>`;
   });
-  svg += `<text x="${left}" y="252" fill="#71717a" font-size="9.5">${fmtDate(traj[0].resolvedAt || traj[0].createdAt)}</text>`;
+  svg += traj.length
+    ? `<text x="${left}" y="252" fill="#71717a" font-size="9.5">${fmtDate(traj[0].resolvedAt || traj[0].createdAt)}</text>`
+    : `<text x="${left}" y="252" fill="#71717a" font-size="9.5">${fmtDate(status.createdAt)}</text>`;
   svg += `<text x="${right}" y="252" fill="#71717a" font-size="9.5" text-anchor="end">now</text>`;
   $("#i-chart").innerHTML = svg;
 
