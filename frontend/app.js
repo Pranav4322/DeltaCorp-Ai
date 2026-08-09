@@ -207,14 +207,7 @@ $("#btn-audit").addEventListener("click", async () => {
 
 /* ---------------------------- tabs ---------------------------- */
 
-const TAB_ACTIVE_CLASSES = {
-  dispatch: "bg-amber-400/10 text-amber-300",
-  signal: "bg-cyan-400/10 text-cyan-300",
-  ledger: "bg-emerald-400/10 text-emerald-300",
-  integrity: "bg-violet-400/10 text-violet-300",
-  community: "bg-sky-400/10 text-sky-300",
-  factcheck: "bg-rose-400/10 text-rose-300",
-};
+const TAB_ACTIVE_CLASSES = "bg-brand-500/10 text-brand-400";
 
 $all(".tab-btn").forEach((btn) => btn.addEventListener("click", () => showTab(btn.dataset.tab)));
 
@@ -223,7 +216,7 @@ function showTab(tab) {
   $all(".tab-btn").forEach((b) => {
     const isActive = b.dataset.tab === tab;
     b.className = "tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide transition " +
-      (isActive ? TAB_ACTIVE_CLASSES[tab] + " font-semibold" : "text-zinc-400 hover:text-zinc-100");
+      (isActive ? TAB_ACTIVE_CLASSES + " font-semibold" : "text-zinc-400 hover:text-zinc-100");
   });
   $all(".tab-panel").forEach((v) => v.classList.toggle("active", v.id === "tab-" + tab));
 }
@@ -318,7 +311,7 @@ function renderDispatch() {
       return `
       <article class="py-8" id="post-${esc(p.id)}">
         <div class="flex justify-between font-mono text-[11px] tracking-wide mb-2.5 ${isCorrection ? "text-rose-400" : "text-amber-400"}"><span class="text-zinc-500">FOLLOW-UP · ${num}</span><span>${fmtDate(p.createdAt)}</span></div>
-        <div class="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-wide uppercase px-2.5 py-1 border rounded mb-3 ${isCorrection ? "border-rose-500 text-rose-400" : "border-amber-500 text-amber-400"}">${isCorrection ? "Correction" : "Confirmed"}</div>
+        <div class="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-wide uppercase px-2.5 py-1 border rounded mb-3 ${isCorrection ? "border-rose-500 text-rose-400" : "border-emerald-500 text-emerald-400"}">${isCorrection ? "Correction" : "Confirmed"}</div>
         ${p.refersToPostId ? `<div class="font-mono text-[10.5px] text-zinc-500 -mt-1 mb-4">Re: dispatch <a class="text-emerald-400 cursor-pointer hover:underline" onclick="document.getElementById('post-${esc(p.refersToPostId)}')?.scrollIntoView({behavior:'smooth'})">${shortId(p.refersToPostId)}</a></div>` : ""}
         <p class="text-[15px] leading-relaxed text-zinc-300 mb-4 whitespace-pre-wrap">${esc(p.text)}</p>
         <div class="font-mono text-[10.5px] text-zinc-600">SRC: ${(p.sources || []).slice(0, 1).map(esc).join(", ") || "internal re-check"}</div>
@@ -406,7 +399,7 @@ function renderSignal() {
     <span class="text-zinc-500">corrected <b class="text-rose-400 font-medium">${track.corrected}</b></span>
     <span class="text-zinc-500">open <b class="text-zinc-200 font-medium">${track.open}</b></span>` : "";
 
-  const stageColor = { scout: "text-cyan-400", curator: "text-cyan-400", writer: "text-cyan-400", critic: "text-amber-400", auditor: "text-emerald-400", scheduler: "text-violet-400" };
+  const stageColor = { scout: "text-cyan-400", curator: "text-cyan-400", writer: "text-cyan-400", critic: "text-amber-400", auditor: "text-emerald-400", scheduler: "text-[#DDAE5C]" };
   $("#s-log").innerHTML = logs.slice(0, 25).map((l) => {
     const t = new Date(l.createdAt);
     const time = isNaN(t) ? l.createdAt : t.toLocaleTimeString();
@@ -435,7 +428,7 @@ function renderLedger() {
 
   const claims = (track && track.claims) || [];
   $("#l-claims").innerHTML = claims.length ? claims.map((c) => {
-    const cls = c.status === "confirmed" ? "border-amber-500 text-amber-400" : c.status === "corrected" ? "border-rose-500 text-rose-400" : "border-zinc-600 text-zinc-500";
+    const cls = c.status === "confirmed" ? "border-emerald-500 text-emerald-400" : c.status === "corrected" ? "border-rose-500 text-rose-400" : "border-zinc-600 text-zinc-500";
     const label = c.status === "confirmed" ? "Confirmed" : c.status === "corrected" ? "Corrected" : "Open";
     return `<tr>
       <td class="py-3 pr-2 align-top font-mono text-xs text-zinc-500 whitespace-nowrap">${fmtDate(c.createdAt)}</td>
@@ -446,10 +439,10 @@ function renderLedger() {
   }).join("") : `<tr><td colspan="4">${emptyNote("No claims made yet.")}</td></tr>`;
 
   $("#l-balance").innerHTML = track ? `
-    <div class="text-right"><div class="text-[10px] text-zinc-500 uppercase tracking-wide">Confirmed</div><div class="text-xl font-semibold mt-0.5">${track.confirmed}</div></div>
+    <div class="text-right"><div class="text-[10px] text-zinc-500 uppercase tracking-wide">Confirmed</div><div class="text-xl font-semibold mt-0.5 text-emerald-400">${track.confirmed}</div></div>
     <div class="text-right"><div class="text-[10px] text-zinc-500 uppercase tracking-wide">Corrected</div><div class="text-xl font-semibold mt-0.5 text-rose-400">${track.corrected}</div></div>
     <div class="text-right"><div class="text-[10px] text-zinc-500 uppercase tracking-wide">Open</div><div class="text-xl font-semibold mt-0.5 text-zinc-400">${track.open}</div></div>
-    <div class="text-right"><div class="text-[10px] text-zinc-500 uppercase tracking-wide">Accuracy to date</div><div class="text-xl font-semibold mt-0.5 text-amber-400">${track.accuracyRate !== null ? Math.round(track.accuracyRate * 100) + "%" : "—"}</div></div>
+    <div class="text-right"><div class="text-[10px] text-zinc-500 uppercase tracking-wide">Accuracy to date</div><div class="text-xl font-semibold mt-0.5 text-brand-400">${track.accuracyRate !== null ? Math.round(track.accuracyRate * 100) + "%" : "—"}</div></div>
   ` : "";
 
   $("#l-declined").innerHTML = rejected.length ? rejected.slice(0, 8).map((r) => {
@@ -504,7 +497,7 @@ function renderIntegrity() {
   $("#i-tallies").innerHTML = `
     <div class="text-center bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-3 min-w-[88px]"><div class="font-headline text-2xl font-semibold text-emerald-400">${track.confirmed}</div><div class="text-[9.5px] text-zinc-500 uppercase tracking-wide mt-1">Confirmed</div></div>
     <div class="text-center bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-3 min-w-[88px]"><div class="font-headline text-2xl font-semibold text-rose-400">${track.corrected}</div><div class="text-[9.5px] text-zinc-500 uppercase tracking-wide mt-1">Corrected</div></div>
-    <div class="text-center bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-3 min-w-[88px]"><div class="font-headline text-2xl font-semibold text-violet-400">${track.open}</div><div class="text-[9.5px] text-zinc-500 uppercase tracking-wide mt-1">Open</div></div>`;
+    <div class="text-center bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-3 min-w-[88px]"><div class="font-headline text-2xl font-semibold text-[#DDAE5C]">${track.open}</div><div class="text-[9.5px] text-zinc-500 uppercase tracking-wide mt-1">Open</div></div>`;
 
   const left = 60, right = 870, top = 40, bottom = 220;
   const yFor = (score) => bottom - (score / 100) * (bottom - top);
@@ -526,7 +519,7 @@ function renderIntegrity() {
     <text x="40" y="224" fill="#71717a" font-size="10" text-anchor="end">40</text>`;
 
   const points = traj.map((c, i) => `${xFor(i).toFixed(1)},${yFor(c.score).toFixed(1)}`).join(" ");
-  svg += `<polyline points="${points}" fill="none" stroke="#A78BFA" stroke-width="2.5" filter="url(#glow)"/>`;
+  svg += `<polyline points="${points}" fill="none" stroke="#4F6FE0" stroke-width="2.5" filter="url(#glow)"/>`;
   traj.forEach((c, i) => {
     const isRed = c.status === "corrected";
     svg += `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(c.score).toFixed(1)}" r="${isRed ? 6.5 : 5.5}" fill="#09090b" stroke="${isRed ? "#FB7185" : "#34D399"}" stroke-width="3" ${isRed ? 'filter="url(#glow)"' : ""}/>`;
@@ -547,7 +540,7 @@ function renderIntegrity() {
       <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm mt-0.5 ${isRed ? "bg-rose-500/15 text-rose-400" : "bg-emerald-500/15 text-emerald-400"}">${isRed ? "×" : "✓"}</div>
       <div class="flex-1 min-w-0">
         <div class="flex justify-between items-center gap-2 mb-1.5 flex-wrap">
-          <span class="text-[10.5px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full ${isRed ? "bg-rose-500/15 text-rose-400" : "bg-emerald-500/15 text-emerald-400"}">${isRed ? "Corrected" : "Confirmed"}</span>
+          <span class="stamp ${isRed ? "text-rose-400" : "text-emerald-400"}">${isRed ? "Corrected" : "Confirmed"}</span>
           <span class="font-mono text-[11px] text-zinc-500 whitespace-nowrap">${prevScore !== null ? prevScore + " → " : ""}${c.score}</span>
         </div>
         <div class="font-headline italic text-base text-zinc-100 mb-1.5 leading-snug">"${esc(c.claimText)}"</div>
@@ -603,9 +596,9 @@ $("#c-submit").addEventListener("click", async () => {
 /* ---------------------------- render: Fact Check ---------------------------- */
 
 const VERDICT_STYLE = {
-  "worth-covering": "bg-emerald-500/15 text-emerald-400",
-  "not-relevant": "bg-zinc-700/40 text-zinc-400",
-  "needs-caution": "bg-amber-500/15 text-amber-400",
+  "worth-covering": "text-emerald-400",
+  "not-relevant": "text-zinc-400",
+  "needs-caution": "text-amber-400",
 };
 
 function renderFactCheck() {
@@ -623,7 +616,7 @@ function renderFactCheck() {
           </div>`;
         }
         const r = c.result || {};
-        const badge = VERDICT_STYLE[r.verdict] || "bg-zinc-700/40 text-zinc-400";
+        const badge = VERDICT_STYLE[r.verdict] || "text-zinc-400";
         return `
         <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
           <div class="flex justify-between items-start gap-2 mb-2 flex-wrap">
@@ -631,7 +624,7 @@ function renderFactCheck() {
               <div class="text-sm font-semibold text-zinc-100 truncate">${esc(c.title || c.url)}</div>
               <a href="${esc(c.url)}" target="_blank" rel="noopener" class="text-[11px] text-zinc-500 hover:text-zinc-300 underline truncate block">${esc(c.url)}</a>
             </div>
-            <span class="text-[10.5px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full whitespace-nowrap ${badge}">${esc(r.verdict || "—")}</span>
+            <span class="stamp whitespace-nowrap ${badge}">${esc(r.verdict || "—")}</span>
           </div>
           <div class="text-sm text-zinc-300 leading-relaxed mb-2">${esc(r.summary || "")}</div>
           ${r.keyClaims && r.keyClaims.length ? `
