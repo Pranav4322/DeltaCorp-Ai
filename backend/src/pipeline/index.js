@@ -85,9 +85,9 @@ async function runCycle(agent) {
       : draft.rationale;
 
   db.prepare(
-    `INSERT INTO posts (id, agent_id, text, rationale, sources_json, topic_key, post_type, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'post', ?)`
-  ).run(postId, agent.id, finalText, finalRationale, JSON.stringify(draft.sources), draft.topicKey, createdAt);
+    `INSERT INTO posts (id, agent_id, text, rationale, sources_json, topic_key, post_type, score, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'post', ?, ?)`
+  ).run(postId, agent.id, finalText, finalRationale, JSON.stringify(draft.sources), draft.topicKey, Math.round(winner.weighted * 10), createdAt);
 
   recordPublished(agent.id, {
     topicKey: draft.topicKey,
