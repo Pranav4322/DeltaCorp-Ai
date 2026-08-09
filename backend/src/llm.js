@@ -84,9 +84,11 @@ async function callOpenRouter({ system, prompt, maxTokens }) {
 }
 
 // Order = fallback priority. Each entry only runs if its key is set.
+// Gemini first per current setup — Anthropic/OpenRouter remain as fallback
+// if their keys are set, but won't be tried unless Gemini fails.
 const PROVIDERS = [
-  { name: "anthropic", enabled: !!process.env.ANTHROPIC_API_KEY, fn: callAnthropic },
   { name: "gemini", enabled: !!process.env.GEMINI_API_KEY, fn: callGemini },
+  { name: "anthropic", enabled: !!process.env.ANTHROPIC_API_KEY, fn: callAnthropic },
   { name: "openrouter", enabled: !!process.env.OPENROUTER_API_KEY, fn: callOpenRouter },
 ];
 
@@ -159,11 +161,49 @@ function sanitizeJsonWhitespace(text) {
 }
 
 /**
- * Calls the model and expects strict JSON back. Strips markdown fences
- * defensively, sanitizes stray raw newlines inside string values, and
- * throws with the raw text attached if parsing still fails, so callers
- * can log/retry instead of silently crashing the scheduler tick.
+ * Calls the model and expects strict JSON back. Strips markdown fences,
+ * extracts just the {...} (or [...]) object/array out of the response so
+ * any reasoning preamble/trailing commentary the model adds ("Wait, the
+ * article says...") doesn't break parsing, sanitizes stray raw newlines
+ * inside string values, and throws with the raw text attached if parsing
+ * still fails, so callers can log/retry instead of silently crashing.
  */
+function extractJsonSpan(text) {
+  // Find the outermost {...} or [...] — whichever starts first — and
+  // slice to its matching close. Handles models that prepend reasoning
+  // text or append trailing commentary around the actual JSON payload.
+  const firstBrace = text.indexOf("{");
+  const firstBracket = text.indexOf("[");
+  let start = -1;
+  let openChar, closeChar;
+  if (firstBrace === -1 && firstBracket === -1) return text;
+  if (firstBracket === -1 || (firstBrace !== -1 && firstBrace < firstBracket)) {
+    start = firstBrace; openChar = "{"; closeChar = "}";
+  } else {
+    start = firstBracket; openChar = "["; closeChar = "]";
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === openChar) depth++;
+    else if (ch === closeChar) {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return text.slice(start); // unbalanced — let JSON.parse report the real error
+}
+
 async function completeJSON({ system, prompt, maxTokens = 1000 }) {
   const raw = await complete({
     system: `${system}\n\nRespond with ONLY valid JSON. No markdown fences, no preamble, no explanation outside the JSON object. Any line breaks within a string value MUST be written as the two characters \\n, never as an actual newline.`,
@@ -172,7 +212,8 @@ async function completeJSON({ system, prompt, maxTokens = 1000 }) {
   });
 
   const cleaned = raw.replace(/```json|```/g, "").trim();
-  const sanitized = sanitizeJsonWhitespace(cleaned);
+  const extracted = extractJsonSpan(cleaned);
+  const sanitized = sanitizeJsonWhitespace(extracted);
   try {
     return JSON.parse(sanitized);
   } catch (err) {
