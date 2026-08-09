@@ -82,7 +82,7 @@ app.get("/api/agent/feed", (req, res) => {
   const rows = db
     .prepare(
       `SELECT id, text, rationale, sources_json as sourcesJson, post_type as postType,
-              refers_to_post_id as refersToPostId, created_at as createdAt
+              refers_to_post_id as refersToPostId, score, created_at as createdAt
        FROM posts WHERE agent_id = ? ORDER BY created_at DESC`
     )
     .all(agentId);
@@ -114,6 +114,7 @@ app.get("/api/agent/feed", (req, res) => {
     // by the Auditor re-checking a past claim (see src/pipeline/auditor.js).
     postType: r.postType || "post",
     refersToPostId: r.refersToPostId || null,
+    score: r.score ?? null, // 0-100 Curator score at publish time; null for older posts predating this field
     claims: claimsByPost[r.id] || [],
   }));
 
