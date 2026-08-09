@@ -73,17 +73,9 @@ platform can't provide.
 
 ---
 
-### Prompt 4 — change API provider to OpenAI (chatgpt 5.6 luna)
-
-> "can u please use chatgpt 5.6 luna model for the api"
-
-**What the AI did:** added a new `callOpenAI` function to `backend/src/llm.js` that posts to the `api.openai.com/v1/chat/completions` endpoint, defaulting to the requested model. Placed OpenAI at the top of the fallback provider list so it takes priority over Gemini/Anthropic when an `OPENAI_API_KEY` is present. Updated `backend/.env.example` to document the new configuration variables.
-
----
-
 ## Tooling summary
 
-- **Model:** Claude (Anthropic), Gemini 3.1 Pro (High) used via chat with file/code-execution
+- **Model:** Claude (Anthropic), used via chat with file/code-execution
   tools enabled.
 - **How it was used:** end-to-end — reading and reconciling the two source
   zips, writing all backend wiring and every frontend file, running and
