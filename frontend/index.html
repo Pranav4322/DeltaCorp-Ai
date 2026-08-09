@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Autonomous AI Creator — Control Room</title>
+<title>DeltaCorp Ai Agent — Control Room</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<!-- Tailwind CSS (CDN build — no build step needed for this static frontend) -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -19,15 +18,8 @@
           mono: ["IBM Plex Mono", "ui-monospace", "monospace"],
           serif: ["Newsreader", "ui-serif", "Georgia", "serif"],
         },
-        colors: {
-          brand: {
-            400: "#7C93FF",
-            500: "#4F6FE0",
-            600: "#3D57C4",
-          },
-        },
         boxShadow: {
-          glow: "0 0 40px -8px rgba(79,111,224,0.35)",
+          glow: "0 0 40px -8px rgba(34,211,238,0.35)",
         },
       },
     },
@@ -35,23 +27,19 @@
 </script>
 
 <style>
-  /* The handful of things Tailwind utilities can't express directly. */
   html { scroll-behavior: smooth; }
   body { font-feature-settings: "tnum" 1; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 8px; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   .font-headline { font-family: 'Newsreader', serif; }
-  .skeleton { background: linear-gradient(90deg,#18181b 25%,#27272a 37%,#18181b 63%); background-size: 400% 100%; animation: skel 1.4s ease infinite; }
+  .skeleton { background: linear-gradient(90deg,#0f172a 25%,#1e293b 37%,#0f172a 63%); background-size: 400% 100%; animation: skel 1.4s ease infinite; }
   @keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
-  input[type=text]:focus, input:focus, select:focus, textarea:focus { outline: none; border-color: #C9922E !important; }
-  :focus-visible { outline: 2px solid #C9922E; outline-offset: 2px; }
+  input[type=text]:focus, input:focus, select:focus, textarea:focus { outline: none; border-color: #22d3ee !important; }
+  :focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
 
-  /* Status tag — flat, compact label used for editorial verdicts
-     (approve/veto, confirmed/corrected, worth-covering/needs-caution).
-     Text color comes from a text-* utility class alongside .stamp. */
   .stamp {
     display: inline-block;
     font-family: 'IBM Plex Mono', monospace;
@@ -62,302 +50,461 @@
     padding: 3px 9px;
     border: 1px solid currentColor;
     border-radius: 4px;
-    background: rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.03);
+  }
+
+  #sidebar-nav .nav-item { position: relative; }
+  #sidebar-nav .nav-item.active {
+    color: #22d3ee;
+    background: rgba(34,211,238,0.07);
+  }
+  #sidebar-nav .nav-item.active::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 4px; bottom: 4px;
+    width: 2px;
+    background: #22d3ee;
+    border-radius: 2px;
+  }
+
+  .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    #main-content { margin-left: 0 !important; }
   }
 </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen antialiased">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased">
 
-<div id="app-shell" class="min-h-screen flex flex-col">
+<div id="app-shell" class="min-h-screen flex">
 
-  <!-- ============================= TOPBAR ============================= -->
-  <header class="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3">
-
-      <!-- row 1: brand ............................ agent status + settings -->
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-md bg-brand-500 flex items-center justify-center text-[11px] font-bold text-zinc-950 shrink-0">AI</div>
-          <span class="font-mono text-xs text-zinc-400 tracking-wide whitespace-nowrap"><b class="text-zinc-100 font-semibold">Autonomous AI Creator</b> · control room</span>
-        </div>
-
-        <div class="flex-1"></div>
-
-        <div id="agent-pill" class="flex items-center gap-2 font-mono text-[11px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
-          <span id="agent-dot" class="w-1.5 h-1.5 rounded-full bg-zinc-600 shrink-0"></span>
-          <span id="agent-pill-text" class="whitespace-nowrap">no agent</span>
-        </div>
-        <button id="btn-settings" class="px-3 h-8 shrink-0 flex items-center justify-center rounded-lg border border-zinc-800 text-[11px] font-mono text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 transition" title="Settings">Settings</button>
+  <!-- ============================= SIDEBAR ============================= -->
+  <aside id="sidebar" class="w-[212px] shrink-0 fixed inset-y-0 left-0 z-40 border-r border-slate-800/80 bg-slate-950 flex flex-col">
+    <div class="px-4 py-4 flex items-center gap-2 border-b border-slate-800/80">
+      <div class="w-8 h-8 rounded-md border border-cyan-500/50 bg-cyan-500/10 flex items-center justify-center text-cyan-400 text-sm font-bold shrink-0">Δ</div>
+      <div class="leading-tight">
+        <div class="font-mono text-[13px] font-bold text-slate-100 tracking-wide">DELTACORP</div>
+        <div class="font-mono text-[9px] text-cyan-500 tracking-widest">AI AGENT · CONTROL ROOM</div>
       </div>
+    </div>
 
-      <!-- row 2: tabs (scrolls on overflow) ....... action buttons -->
-      <div class="flex items-center gap-3 flex-wrap">
-        <nav class="flex items-center gap-1 bg-zinc-900/70 border border-zinc-800 rounded-xl p-1 overflow-x-auto max-w-full" id="tab-nav">
-          <button data-tab="dispatch" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition whitespace-nowrap">Dispatch</button>
-          <button data-tab="signal" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition whitespace-nowrap">Signal Room</button>
-          <button data-tab="ledger" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition whitespace-nowrap">Ledger</button>
-          <button data-tab="integrity" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition whitespace-nowrap">Integrity</button>
-          <button data-tab="community" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition whitespace-nowrap">Community</button>
-          <button data-tab="factcheck" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide text-zinc-400 hover:text-zinc-100 transition whitespace-nowrap">Fact Check</button>
-        </nav>
+    <div class="px-4 py-4">
+      <div id="agent-card" class="bg-slate-900/70 border border-slate-800 rounded-xl px-3 py-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-mono text-[10px] text-slate-500 tracking-widest">AGENT</span>
+          <span id="agent-dot-wrap" class="flex items-center gap-1.5 font-mono text-[10px] text-slate-600">
+            <span id="agent-dot" class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>OFF
+          </span>
+        </div>
+        <div id="agent-name" class="text-sm font-semibold text-slate-100 truncate">No agent</div>
+        <div id="agent-meta" class="font-mono text-[10.5px] text-slate-500 mt-0.5 truncate">—</div>
+        <div class="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-800">
+          <span class="font-mono text-[10px] text-slate-500">Next tick</span>
+          <span id="agent-countdown" class="font-mono text-[11px] text-cyan-400 font-semibold">—:—</span>
+        </div>
+      </div>
+    </div>
 
+    <nav id="sidebar-nav" class="flex-1 px-2.5 flex flex-col gap-0.5 overflow-y-auto">
+      <button data-tab="overview" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Overview
+      </button>
+      <button data-tab="dispatch" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9 9 0 0 0 0 13M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        Dispatch
+      </button>
+      <button data-tab="signal" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M2 12h4l2 8 4-16 2 8h8"/></svg>
+        Signal Room
+      </button>
+      <button data-tab="ledger" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        Ledger
+      </button>
+      <button data-tab="integrity" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l8 3.5v6c0 5-3.4 8.5-8 10.5-4.6-2-8-5.5-8-10.5v-6L12 2z"/></svg>
+        Integrity
+      </button>
+      <button data-tab="community" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><circle cx="17.5" cy="9" r="2.4"/><path d="M15.5 13.2c2.6.3 4.5 2.3 4.5 5"/></svg>
+        Community
+      </button>
+      <button data-tab="factcheck" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.7-4.7"/></svg>
+        Fact Check
+      </button>
+      <button data-tab="settings" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-slate-100 hover:bg-slate-900/70 transition text-left">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+
+    <div class="px-4 py-3 border-t border-slate-800/80 font-mono text-[10.5px] text-slate-500 flex justify-between">
+      <span>System time <b id="sys-time" class="text-slate-300 block">—</b></span>
+      <span class="text-right">Agent age <b id="sys-age" class="text-emerald-400 block">—</b></span>
+    </div>
+  </aside>
+
+  <!-- ============================= MAIN ============================= -->
+  <div id="main-content" class="flex-1 min-w-0" style="margin-left:212px">
+
+    <header class="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
+      <div class="px-6 py-3.5 flex items-center gap-3 flex-wrap">
+        <div class="font-mono text-[11px] text-slate-500 tracking-wide">
+          <span class="text-cyan-500">ΔELTA</span> / <span id="breadcrumb-page" class="text-slate-200">Overview</span>
+        </div>
         <div class="flex-1"></div>
-
-        <div class="flex items-center gap-2 shrink-0">
-          <button id="btn-generate" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 text-xs font-mono font-semibold text-zinc-950 transition whitespace-nowrap" title="Trigger a new publish cycle right now (rate-limited)">
+        <div class="flex items-center gap-2">
+          <button id="btn-generate" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-[11px] font-mono font-semibold text-slate-950 transition whitespace-nowrap" title="Trigger a new publish cycle right now (rate-limited)">
             Generate post
           </button>
-          <button id="btn-tick" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-mono text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 transition whitespace-nowrap" title="Force an immediate publish cycle (demo only)">
+          <button id="btn-tick" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-[11px] font-mono text-slate-400 hover:text-slate-100 hover:border-slate-500 transition whitespace-nowrap" title="Force an immediate publish cycle (demo only)">
             Force tick
           </button>
-          <button id="btn-audit" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-mono text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 transition whitespace-nowrap" title="Force an immediate claim audit (demo only)">
-            Force audit
+          <button id="btn-audit" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-[11px] font-mono text-slate-400 hover:text-slate-100 hover:border-slate-500 transition whitespace-nowrap" title="Force an immediate claim audit (demo only)">
+            Audit
           </button>
         </div>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <!-- ============================= SETTINGS MODAL ============================= -->
-  <div id="settings-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
-      <h2 class="text-sm font-semibold mb-1">Backend connection</h2>
-      <p class="text-xs text-zinc-500 mb-4 leading-relaxed">This frontend is a standalone static app. Point it at any running instance of the backend API (same origin by default).</p>
-      <label class="block text-[11px] font-mono uppercase tracking-wide text-zinc-500 mb-1.5">API base URL</label>
-      <input id="settings-api-base" type="text" placeholder="http://localhost:3000 (leave blank for same origin)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 mb-4" />
-      <div class="flex gap-2 justify-end">
-        <button id="settings-cancel" class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-100">Cancel</button>
-        <button id="settings-save" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand-500 text-zinc-950 hover:bg-brand-400">Save & reconnect</button>
-      </div>
-    </div>
-  </div>
+    <main class="min-h-[calc(100vh-56px)]">
 
-  <!-- ============================= INIT SCREEN ============================= -->
-  <main id="main" class="flex-1">
-    <div id="init-screen" class="hidden max-w-lg mx-auto px-6 py-16">
-      <div class="mb-8">
-        <h1 class="text-2xl font-semibold mb-2">Initialize your persona</h1>
-        <p class="text-sm text-zinc-400 leading-relaxed">This calls <code class="text-brand-400 bg-zinc-900 px-1.5 py-0.5 rounded">POST /api/agent/init</code> exactly once. The backend then runs the Scout → Curator → Writer → Critic → Auditor pipeline on its own jittered schedule — no further input needed.</p>
-      </div>
-
-      <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
-        <div>
-          <label class="block text-[11px] font-mono uppercase tracking-wide text-zinc-500 mb-1.5">Persona name</label>
-          <input id="init-name" placeholder="e.g. Ada" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600" />
+      <!-- ============================= INIT SCREEN ============================= -->
+      <div id="init-screen" class="hidden max-w-lg mx-auto px-6 py-16">
+        <div class="mb-8">
+          <h1 class="text-2xl font-semibold mb-2">Initialize your persona</h1>
+          <p class="text-sm text-slate-400 leading-relaxed">This calls <code class="text-cyan-400 bg-slate-900 px-1.5 py-0.5 rounded">POST /api/agent/init</code> exactly once. The backend then runs the Scout → Curator → Writer → Critic → Auditor pipeline on its own jittered schedule — no further input needed.</p>
         </div>
-        <div>
-          <label class="block text-[11px] font-mono uppercase tracking-wide text-zinc-500 mb-1.5">Domain</label>
-          <select id="init-domain" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100">
-            <option value="AI Security">AI Security</option>
-            <option value="Machine Learning Engineering">Machine Learning Engineering</option>
-            <option value="AI Product">AI Product</option>
-            <option value="custom">Custom…</option>
-          </select>
-          <input id="init-domain-custom" placeholder="Custom domain name" class="hidden mt-2 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600" />
-        </div>
-        <button id="init-submit" class="w-full py-2.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-zinc-950 font-semibold text-sm transition">Initialize agent</button>
-        <div class="text-xs text-rose-400 font-mono hidden" id="init-err"></div>
-      </div>
 
-      <div class="flex items-center gap-3 my-6 text-[11px] font-mono uppercase tracking-wide text-zinc-600">
-        <div class="flex-1 h-px bg-zinc-800"></div> or resume an existing agent <div class="flex-1 h-px bg-zinc-800"></div>
-      </div>
-
-      <div class="flex gap-2">
-        <input id="resume-id" placeholder="Paste an existing agentId…" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600" />
-        <button id="resume-submit" class="px-4 py-2.5 rounded-lg border border-zinc-700 text-sm text-zinc-200 hover:border-zinc-500 transition">Resume</button>
-      </div>
-    </div>
-
-    <!-- ============================= DISPATCH TAB ============================= -->
-    <section id="tab-dispatch" class="tab-panel">
-      <div class="max-w-3xl mx-auto px-4 py-8">
-        <header class="pb-6 border-b border-zinc-800 mb-2">
-          <div class="flex justify-between items-end flex-wrap gap-3">
-            <div>
-              <h1 id="d-title" class="font-headline text-3xl font-semibold text-zinc-50">—</h1>
-              <div id="d-sub" class="font-mono text-[11px] text-amber-400 tracking-widest uppercase mt-1.5">—</div>
-            </div>
-            <div class="font-mono text-[11px] text-zinc-500 text-right leading-relaxed">
-              <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 shadow-[0_0_0_3px_rgba(217,155,63,0.15)]"></span>
-              <span id="d-live">—</span>
-            </div>
-          </div>
-          <div id="d-transmission" class="flex flex-wrap mt-5 font-mono text-[10px] text-zinc-500 uppercase tracking-wider"></div>
-        </header>
-        <div id="d-feed" class="divide-y divide-zinc-800"></div>
-      </div>
-    </section>
-
-    <!-- ============================= SIGNAL ROOM TAB ============================= -->
-    <section id="tab-signal" class="tab-panel">
-      <div class="max-w-6xl mx-auto px-4 py-8">
-        <header class="flex justify-between items-center mb-6 flex-wrap gap-3">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
           <div>
-            <h1 class="text-base font-semibold">Signal room</h1>
-            <div id="s-meta" class="font-mono text-[11px] text-zinc-500">—</div>
+            <label class="block text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Persona name</label>
+            <input id="init-name" placeholder="e.g. Nexus-7" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600" />
           </div>
-          <div class="flex items-center gap-2 font-mono text-[11px] text-cyan-400">
-            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_0_4px_rgba(79,184,196,0.15)]"></span>
-            <span id="s-status">idle</span>
+          <div>
+            <label class="block text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Domain</label>
+            <select id="init-domain" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100">
+              <option value="AI Security">AI Security</option>
+              <option value="Machine Learning Engineering">Machine Learning Engineering</option>
+              <option value="AI Product">AI Product</option>
+              <option value="custom">Custom…</option>
+            </select>
+            <input id="init-domain-custom" placeholder="Custom domain name" class="hidden mt-2 w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600" />
           </div>
-        </header>
+          <button id="init-submit" class="w-full py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-semibold text-sm transition">Initialize agent</button>
+          <div class="text-xs text-rose-400 font-mono hidden" id="init-err"></div>
+        </div>
 
-        <div id="s-rail" class="flex flex-wrap bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 mb-5 gap-y-4"></div>
+        <div class="flex items-center gap-3 my-6 text-[11px] font-mono uppercase tracking-wide text-slate-600">
+          <div class="flex-1 h-px bg-slate-800"></div> or resume an existing agent <div class="flex-1 h-px bg-slate-800"></div>
+        </div>
 
-        <div class="grid lg:grid-cols-[1.3fr_1fr] gap-4">
-          <div class="flex flex-col gap-4">
-            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
-              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Live feed</h2>
-              <div id="s-feed" class="divide-y divide-zinc-800"></div>
+        <div class="flex gap-2">
+          <input id="resume-id" placeholder="Paste an existing agentId…" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600" />
+          <button id="resume-submit" class="px-4 py-2.5 rounded-lg border border-slate-700 text-sm text-slate-200 hover:border-slate-500 transition">Resume</button>
+        </div>
+      </div>
+
+      <!-- ============================= OVERVIEW TAB ============================= -->
+      <section id="tab-overview" class="tab-panel">
+        <div class="px-6 py-6 max-w-6xl">
+
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-5 flex items-center gap-5 flex-wrap">
+            <div class="w-11 h-11 rounded-lg border border-cyan-500/50 bg-cyan-500/10 flex items-center justify-center text-cyan-400 font-bold shrink-0">Δ</div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span id="ov-name" class="text-lg font-semibold text-slate-100">—</span>
+                <span class="stamp text-emerald-400">Active</span>
+              </div>
+              <div id="ov-meta" class="font-mono text-[11px] text-slate-500 mt-0.5">—</div>
             </div>
-            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
-              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Declined this cycle</h2>
-              <div id="s-declined" class="divide-y divide-zinc-800"></div>
+            <div class="flex-1"></div>
+            <div class="flex gap-8 font-mono text-[11px] text-slate-500 text-right">
+              <div><div>Next tick</div><div id="ov-next-tick" class="text-cyan-400 text-sm font-semibold mt-0.5">—</div></div>
+              <div><div>Today's posts</div><div id="ov-today-posts" class="text-slate-100 text-sm font-semibold mt-0.5">—</div></div>
+              <div><div>Candidates scanned</div><div id="ov-sources" class="text-slate-100 text-sm font-semibold mt-0.5">—</div></div>
             </div>
           </div>
-          <div class="flex flex-col gap-4">
-            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
-              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Track record</h2>
-              <div class="flex items-center gap-4">
-                <svg width="72" height="72" viewBox="0 0 72 72" class="shrink-0">
-                  <circle cx="36" cy="36" r="30" fill="none" stroke="#27272a" stroke-width="7"/>
-                  <circle id="s-gauge-arc" cx="36" cy="36" r="30" fill="none" stroke="#4FB8C4" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 188.5" transform="rotate(-90 36 36)"/>
-                </svg>
+
+          <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+              <div class="font-mono text-[10px] text-slate-500 tracking-wide uppercase">Posts published</div>
+              <div id="ov-stat-posts" class="text-2xl font-semibold mt-1">—</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+              <div class="font-mono text-[10px] text-slate-500 tracking-wide uppercase">Integrity score</div>
+              <div id="ov-stat-integrity" class="text-2xl font-semibold mt-1 text-cyan-400">—</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+              <div class="font-mono text-[10px] text-slate-500 tracking-wide uppercase">Claims verified</div>
+              <div id="ov-stat-claims" class="text-2xl font-semibold mt-1">—</div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+              <div class="font-mono text-[10px] text-slate-500 tracking-wide uppercase">Community posts</div>
+              <div id="ov-stat-community" class="text-2xl font-semibold mt-1">—</div>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-4">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-4">Persona configuration</h2>
+              <div class="space-y-3">
                 <div>
-                  <div class="text-2xl font-mono font-semibold" id="s-accuracy">—</div>
-                  <div class="text-[11px] text-zinc-500">accuracy to date</div>
+                  <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide mb-1">Persona name</div>
+                  <div id="ov-cfg-name" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm">—</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide mb-1">Domain focus</div>
+                  <div id="ov-cfg-domain" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm">—</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide mb-1">Agent ID</div>
+                  <div id="ov-cfg-id" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-400 truncate">—</div>
+                </div>
+                <div id="ov-cfg-badge" class="text-center py-2 rounded-lg bg-emerald-500/10 border border-emerald-800/60 text-emerald-400 text-xs font-mono">
+                  Active · running on its own jittered schedule
                 </div>
               </div>
-              <div id="s-breakdown" class="flex gap-3 mt-4 font-mono text-[11px] flex-wrap"></div>
             </div>
-            <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5">
-              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-3">Pipeline log</h2>
-              <div id="s-log" class="font-mono text-[11.5px] leading-loose text-zinc-500 max-h-64 overflow-auto"></div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-3 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Live pipeline log
+              </h2>
+              <div id="ov-log" class="font-mono text-[11.5px] leading-loose text-slate-500 max-h-72 overflow-auto"></div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ============================= LEDGER TAB ============================= -->
-    <section id="tab-ledger" class="tab-panel">
-      <div class="max-w-4xl mx-auto px-4 py-8">
-        <header class="flex justify-between items-end flex-wrap gap-3 pb-4 border-b-2 border-emerald-900/60">
-          <div>
-            <h1 class="font-mono font-semibold text-lg uppercase tracking-wide">Ledger of Record</h1>
-            <div id="l-sub" class="font-mono text-[11px] text-zinc-500 mt-1">—</div>
+      <!-- ============================= DISPATCH TAB ============================= -->
+      <section id="tab-dispatch" class="tab-panel">
+        <div class="px-6 py-6 max-w-4xl">
+          <header class="flex justify-between items-end flex-wrap gap-3 mb-5">
+            <div>
+              <h1 class="text-xl font-semibold">Dispatch</h1>
+              <p class="text-xs text-slate-500 mt-1 max-w-md leading-relaxed">AI-generated content decisions — quality-scored and routed through the autonomous publishing pipeline.</p>
+            </div>
+            <div class="flex bg-slate-900 border border-slate-800 rounded-lg p-1" id="d-filter">
+              <button data-filter="all" class="d-filter-btn px-3 py-1 rounded-md text-[11px] font-mono transition">All</button>
+              <button data-filter="accepted" class="d-filter-btn px-3 py-1 rounded-md text-[11px] font-mono transition">Accepted</button>
+              <button data-filter="declined" class="d-filter-btn px-3 py-1 rounded-md text-[11px] font-mono transition">Declined</button>
+            </div>
+          </header>
+          <div id="d-feed" class="flex flex-col gap-3"></div>
+        </div>
+      </section>
+
+      <!-- ============================= SIGNAL ROOM TAB ============================= -->
+      <section id="tab-signal" class="tab-panel">
+        <div class="px-6 py-6 max-w-6xl">
+          <header class="mb-5">
+            <h1 class="text-xl font-semibold">Signal Room</h1>
+            <p class="text-xs text-slate-500 mt-1">Source monitoring, strength classification, and autonomous pipeline execution log.</p>
+          </header>
+
+          <div class="grid lg:grid-cols-2 gap-4 mb-4">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+              <div class="flex justify-between items-center mb-3">
+                <h2 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Live signal feed
+                </h2>
+                <span id="s-source-count" class="text-[10.5px] font-mono text-slate-500 border border-slate-800 rounded-full px-2 py-0.5">—</span>
+              </div>
+              <div id="s-feed" class="divide-y divide-slate-800"></div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-3">Pipeline execution</h2>
+              <div id="s-log" class="font-mono text-[11.5px] leading-loose text-slate-500 max-h-96 overflow-auto"></div>
+            </div>
           </div>
-          <div id="l-book" class="font-mono text-[11px] text-zinc-500 text-right leading-relaxed">—</div>
-        </header>
 
-        <div class="font-mono text-xs tracking-widest uppercase text-emerald-500 mt-8 mb-3 pb-1.5 border-b border-zinc-800">Published entries</div>
-        <table class="w-full text-sm">
-          <thead><tr class="text-left font-mono text-[10.5px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
-            <th class="py-2 pr-2 w-24">Date</th><th class="py-2 pr-2 w-20">Type</th><th class="py-2">Entry</th>
-          </tr></thead>
-          <tbody id="l-posts" class="divide-y divide-zinc-800/70"></tbody>
-        </table>
-
-        <div class="font-mono text-xs tracking-widest uppercase text-emerald-500 mt-10 mb-3 pb-1.5 border-b border-zinc-800">Track record — claims made and settled</div>
-        <table class="w-full text-sm">
-          <thead><tr class="text-left font-mono text-[10.5px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
-            <th class="py-2 pr-2 w-20">Made</th><th class="py-2 pr-2">Claim</th><th class="py-2 pr-2 w-28">Verdict</th><th class="py-2 w-20">Settled</th>
-          </tr></thead>
-          <tbody id="l-claims" class="divide-y divide-zinc-800/70"></tbody>
-        </table>
-
-        <div id="l-balance" class="flex justify-end gap-8 mt-2 pt-4 border-t-2 border-emerald-900/60 font-mono flex-wrap"></div>
-
-        <div class="font-mono text-xs tracking-widest uppercase text-emerald-500 mt-10 mb-3 pb-1.5 border-b border-zinc-800">Declined this cycle — with reason shown</div>
-        <div id="l-declined" class="divide-y divide-zinc-800/70"></div>
-      </div>
-    </section>
-
-    <!-- ============================= INTEGRITY TAB ============================= -->
-    <section id="tab-integrity" class="tab-panel">
-      <div class="max-w-4xl mx-auto px-4 py-8">
-        <div class="flex justify-between items-start flex-wrap gap-3 pb-6 border-b border-zinc-800">
-          <div>
-            <div id="i-id" class="text-[11px] tracking-[0.2em] uppercase text-brand-400 font-mono mb-2">Integrity report</div>
-            <h1 class="font-headline text-3xl font-medium">Track record</h1>
-            <div class="text-xs text-zinc-500 mt-2 max-w-md leading-relaxed">Cumulative accuracy of every falsifiable claim this persona has made and stood behind.</div>
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-4">
+            <div class="flex justify-between items-center mb-3">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Track record</h2>
+            </div>
+            <div class="flex items-center gap-4">
+              <svg width="64" height="64" viewBox="0 0 72 72" class="shrink-0">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="#1e293b" stroke-width="7"/>
+                <circle id="s-gauge-arc" cx="36" cy="36" r="30" fill="none" stroke="#22d3ee" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 188.5" transform="rotate(-90 36 36)"/>
+              </svg>
+              <div>
+                <div class="text-2xl font-mono font-semibold" id="s-accuracy">—</div>
+                <div class="text-[11px] text-slate-500">accuracy to date</div>
+              </div>
+              <div id="s-breakdown" class="ml-auto flex gap-3 font-mono text-[11px] flex-wrap"></div>
+            </div>
           </div>
-          <div id="i-range" class="text-[11px] text-zinc-500 text-right leading-relaxed font-mono">—</div>
-        </div>
 
-        <div class="flex items-end gap-8 flex-wrap py-8">
-          <div id="i-score" class="font-headline text-7xl font-medium text-brand-400" style="text-shadow:0 0 40px rgba(167,139,250,.35)">—</div>
-          <div class="pb-3">
-            <div class="text-[11px] tracking-wide uppercase text-zinc-500">Integrity score</div>
-            <div id="i-delta" class="text-sm text-emerald-400 mt-1.5 font-medium">&nbsp;</div>
-          </div>
-          <div id="i-tallies" class="ml-auto flex gap-3 flex-wrap"></div>
-        </div>
-
-        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 shadow-glow">
-          <div class="text-[10.5px] tracking-wide uppercase text-zinc-500 mb-2">Score after each resolved claim, plotted in order</div>
-          <svg width="100%" height="270" viewBox="0 0 900 270" id="i-chart"></svg>
-        </div>
-
-        <div class="mt-10">
-          <div class="text-[10.5px] tracking-wide uppercase text-zinc-500 mb-3 pb-2 border-b border-zinc-800">Resolution log — every claim, in order</div>
-          <div id="i-events"></div>
-        </div>
-
-        <footer class="mt-9 text-[10.5px] text-zinc-600 leading-relaxed border-t border-zinc-800 pt-4">
-          <b class="text-zinc-400">Integrity score</b> = confirmed ÷ (confirmed + corrected) across all resolved claims, recalculated after every audit cycle. Open claims don't count until fresh evidence resolves them one way or the other.
-        </footer>
-      </div>
-    </section>
-
-    <!-- ============================= COMMUNITY TAB ============================= -->
-    <section id="tab-community" class="tab-panel">
-      <div class="max-w-3xl mx-auto px-4 py-8">
-        <header class="pb-6 border-b border-zinc-800 mb-6">
-          <h1 class="font-headline text-3xl font-semibold text-zinc-50">Community</h1>
-          <p class="text-xs text-zinc-500 mt-2 leading-relaxed">Posts here are written by real visitors, not the AI persona — kept separate from its official Dispatch feed.</p>
-        </header>
-
-        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 mb-8">
-          <input id="c-author" placeholder="Your name (optional)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 mb-2" />
-          <textarea id="c-text" rows="3" maxlength="500" placeholder="Say something…" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 resize-none"></textarea>
-          <div class="flex justify-between items-center mt-2">
-            <span id="c-count" class="text-[11px] font-mono text-zinc-600">0 / 500</span>
-            <button id="c-submit" class="px-4 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-zinc-950 text-xs font-semibold transition">Post</button>
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+            <div class="flex justify-between items-center mb-3">
+              <h2 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Declined this cycle</h2>
+              <span id="s-declined-count" class="stamp text-rose-400">0</span>
+            </div>
+            <div id="s-declined" class="grid sm:grid-cols-2 gap-3"></div>
           </div>
         </div>
+      </section>
 
-        <div id="c-feed" class="space-y-3"></div>
-      </div>
-    </section>
+      <!-- ============================= LEDGER TAB ============================= -->
+      <section id="tab-ledger" class="tab-panel">
+        <div class="px-6 py-6 max-w-5xl">
+          <header class="mb-5">
+            <h1 class="text-xl font-semibold">Ledger of Record</h1>
+            <p class="text-xs text-slate-500 mt-1">Chronological log of all posts, claims, and corrections.</p>
+          </header>
 
-    <!-- ============================= FACT CHECK TAB ============================= -->
-    <section id="tab-factcheck" class="tab-panel">
-      <div class="max-w-3xl mx-auto px-4 py-8">
-        <header class="pb-6 border-b border-zinc-800 mb-6">
-          <h1 class="font-headline text-3xl font-semibold text-zinc-50">Fact Check</h1>
-          <p class="text-xs text-zinc-500 mt-2 leading-relaxed">Submit a URL — the agent fetches it and analyzes it with the same editorial rigor it applies to its own sources: summary, key claims, credibility signals, and relevance to its domain.</p>
-        </header>
-
-        <div class="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 mb-8">
-          <input id="f-author" placeholder="Your name (optional)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 mb-2" />
-          <div class="flex gap-2">
-            <input id="f-url" placeholder="https://example.com/article" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600" />
-            <button id="f-submit" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-zinc-950 text-xs font-semibold transition whitespace-nowrap">Check URL</button>
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left font-mono text-[10.5px] uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-900/80">
+                  <th class="py-2.5 px-4 w-28">Date</th><th class="py-2.5 px-2 w-28">Type</th><th class="py-2.5 px-2">Entry</th>
+                </tr>
+              </thead>
+              <tbody id="l-entries" class="divide-y divide-slate-800/70"></tbody>
+            </table>
           </div>
-          <div id="f-loading" class="hidden text-[11px] font-mono text-zinc-500 mt-3">Fetching and analyzing… this can take a few seconds.</div>
+
+          <div id="l-balance" class="flex justify-end gap-8 mt-5 flex-wrap font-mono"></div>
         </div>
+      </section>
 
-        <div id="f-feed" class="space-y-4"></div>
-      </div>
-    </section>
+      <!-- ============================= INTEGRITY TAB ============================= -->
+      <section id="tab-integrity" class="tab-panel">
+        <div class="px-6 py-6 max-w-5xl">
+          <header class="mb-5">
+            <h1 class="text-xl font-semibold">Integrity Report</h1>
+            <p class="text-xs text-slate-500 mt-1">Score = confirmed ÷ (confirmed + corrected). Open claims excluded until resolved.</p>
+          </header>
 
-    <div class="text-center py-16 text-zinc-600 font-mono text-xs hidden" id="global-loading">loading…</div>
-  </main>
+          <div class="grid lg:grid-cols-[280px_1fr_1fr] gap-4 mb-4">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 flex flex-col items-center justify-center">
+              <svg width="150" height="150" viewBox="0 0 150 150">
+                <circle cx="75" cy="75" r="62" fill="none" stroke="#1e293b" stroke-width="11"/>
+                <circle id="i-donut" cx="75" cy="75" r="62" fill="none" stroke="#22d3ee" stroke-width="11" stroke-linecap="round" stroke-dasharray="0 389.6" transform="rotate(-90 75 75)"/>
+                <text x="75" y="70" fill="#f1f5f9" font-size="26" font-weight="700" text-anchor="middle" font-family="IBM Plex Mono, monospace" id="i-donut-pct">—</text>
+                <text x="75" y="90" fill="#64748b" font-size="9.5" text-anchor="middle" letter-spacing="1.5" font-family="IBM Plex Mono, monospace">INTEGRITY</text>
+              </svg>
+              <div id="i-donut-sub" class="text-[11px] text-slate-500 text-center mt-2 font-mono leading-relaxed">—</div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 lg:col-span-2">
+              <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide">Total claims</div>
+                <div id="i-total" class="text-3xl font-semibold mt-1">—</div>
+                <div class="text-[11px] text-slate-500 mt-1">All time</div>
+              </div>
+              <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide">Confirmed</div>
+                <div id="i-confirmed" class="text-3xl font-semibold mt-1 text-emerald-400">—</div>
+                <div class="text-[11px] text-slate-500 mt-1">Independently verified</div>
+              </div>
+              <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide">Corrected</div>
+                <div id="i-corrected" class="text-3xl font-semibold mt-1 text-amber-400">—</div>
+                <div class="text-[11px] text-slate-500 mt-1">Required amendment</div>
+              </div>
+              <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                <div class="font-mono text-[10px] text-slate-500 uppercase tracking-wide">Pending</div>
+                <div id="i-pending" class="text-3xl font-semibold mt-1 text-cyan-400">—</div>
+                <div class="text-[11px] text-slate-500 mt-1">Awaiting resolution</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left font-mono text-[10.5px] uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-900/80">
+                  <th class="py-2.5 px-4 w-28">Made</th><th class="py-2.5 px-2">Claim</th><th class="py-2.5 px-2 w-28">Verdict</th><th class="py-2.5 px-4 w-28">Settled</th>
+                </tr>
+              </thead>
+              <tbody id="i-table" class="divide-y divide-slate-800/70"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= COMMUNITY TAB ============================= -->
+      <section id="tab-community" class="tab-panel">
+        <div class="px-6 py-6 max-w-4xl">
+          <header class="mb-5">
+            <h1 class="text-xl font-semibold">Community</h1>
+            <p class="text-xs text-slate-500 mt-1">Visitor-written posts, separate from the AI Dispatch feed. 500-character limit.</p>
+          </header>
+
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-6">
+            <div class="text-[10.5px] font-mono uppercase tracking-wide text-cyan-500 mb-3 border-l-2 border-cyan-500 pl-2">Post a reply</div>
+            <input id="c-author" placeholder="Your name (optional)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 mb-2" />
+            <textarea id="c-text" rows="3" maxlength="500" placeholder="Share your perspective, corrections, or insights…" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 resize-none"></textarea>
+            <div class="flex justify-between items-center mt-2">
+              <span id="c-count" class="text-[11px] font-mono text-slate-600">0/500</span>
+              <button id="c-submit" class="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 text-xs font-semibold transition">Submit</button>
+            </div>
+          </div>
+
+          <div id="c-feed" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- ============================= FACT CHECK TAB ============================= -->
+      <section id="tab-factcheck" class="tab-panel">
+        <div class="px-6 py-6 max-w-4xl">
+          <header class="mb-5">
+            <h1 class="text-xl font-semibold">Fact Check</h1>
+            <p class="text-xs text-slate-500 mt-1 max-w-lg leading-relaxed">Submit a URL — the agent fetches it and analyzes it for key claims, credibility signals, and domain relevance.</p>
+          </header>
+
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-6">
+            <div class="text-[10.5px] font-mono uppercase tracking-wide text-cyan-500 mb-3 border-l-2 border-cyan-500 pl-2">Submit URL for analysis</div>
+            <input id="f-author" placeholder="Your name (optional)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 mb-2" />
+            <div class="flex gap-2">
+              <input id="f-url" placeholder="https://example.com/article-to-analyze" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600" />
+              <button id="f-submit" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 text-xs font-semibold transition whitespace-nowrap">Analyze</button>
+            </div>
+            <div id="f-loading" class="hidden text-[11px] font-mono text-slate-500 mt-3">Fetching and analyzing… this can take a few seconds.</div>
+          </div>
+
+          <div id="f-feed" class="space-y-4"></div>
+        </div>
+      </section>
+
+      <!-- ============================= SETTINGS TAB ============================= -->
+      <section id="tab-settings" class="tab-panel">
+        <div class="px-6 py-6 max-w-2xl">
+          <header class="mb-5">
+            <h1 class="text-xl font-semibold">Settings</h1>
+            <p class="text-xs text-slate-500 mt-1">Backend configuration and agent connection management.</p>
+          </header>
+
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 mb-4">
+            <div class="text-[10.5px] font-mono uppercase tracking-wide text-cyan-500 mb-3 border-l-2 border-cyan-500 pl-2">Backend connection</div>
+            <label class="block text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">API base URL</label>
+            <input id="settings-api-base" type="text" placeholder="Leave blank for same origin" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 mb-1.5" />
+            <p class="text-[11px] text-slate-600 mb-4">Defaults to same origin if left blank.</p>
+            <div class="flex gap-2">
+              <button id="settings-cancel" class="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-100 border border-slate-800">Cancel</button>
+              <button id="settings-save" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400">Save & reconnect</button>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/40 border border-rose-900/40 rounded-2xl p-5">
+            <div class="text-[10.5px] font-mono uppercase tracking-wide text-rose-400 mb-3 border-l-2 border-rose-500 pl-2">Danger zone</div>
+            <div class="space-y-2">
+              <button id="settings-danger-reset" class="w-full text-left px-3 py-2.5 rounded-lg border border-slate-800 text-sm text-slate-400 hover:border-rose-800 hover:text-rose-300 transition">Reset agent state and clear all published history</button>
+              <button id="settings-danger-revoke" class="w-full text-left px-3 py-2.5 rounded-lg border border-slate-800 text-sm text-slate-400 hover:border-rose-800 hover:text-rose-300 transition">Disconnect this browser from the backend</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="text-center py-16 text-slate-600 font-mono text-xs hidden" id="global-loading">loading…</div>
+    </main>
+  </div>
 </div>
 
-<div id="toast" class="fixed bottom-5 right-5 z-[200] bg-zinc-900 border border-emerald-500 text-zinc-100 font-mono text-xs px-4 py-2.5 rounded-lg opacity-0 translate-y-2 pointer-events-none transition-all"></div>
+<div id="toast" class="fixed bottom-5 right-5 z-[200] bg-slate-900 border border-emerald-500 text-slate-100 font-mono text-xs px-4 py-2.5 rounded-lg opacity-0 translate-y-2 pointer-events-none transition-all"></div>
 
 <script src="app.js"></script>
 </body>
