@@ -19,6 +19,7 @@ const Anthropic = require("@anthropic-ai/sdk");
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-latest";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "chatgpt-5.6-luna";
 
 const anthropicClient = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -83,10 +84,35 @@ async function callOpenRouter({ system, prompt, maxTokens }) {
   return text.trim();
 }
 
+async function callOpenAI({ system, prompt, maxTokens }) {
+  const key = process.env.OPENAI_API_KEY;
+  const resp = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model: OPENAI_MODEL,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
+    }
+  );
+  const text = resp.data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenAI returned no text");
+  return text.trim();
+}
+
 // Order = fallback priority. Each entry only runs if its key is set.
-// Gemini first per current setup — Anthropic/OpenRouter remain as fallback
-// if their keys are set, but won't be tried unless Gemini fails.
+// OpenAI first, followed by Gemini — Anthropic/OpenRouter remain as fallback
 const PROVIDERS = [
+  { name: "openai", enabled: !!process.env.OPENAI_API_KEY, fn: callOpenAI },
   { name: "gemini", enabled: !!process.env.GEMINI_API_KEY, fn: callGemini },
   { name: "anthropic", enabled: !!process.env.ANTHROPIC_API_KEY, fn: callAnthropic },
   { name: "openrouter", enabled: !!process.env.OPENROUTER_API_KEY, fn: callOpenRouter },
@@ -100,7 +126,7 @@ async function complete({ system, prompt, maxTokens = 1000 }) {
   const active = PROVIDERS.filter((p) => p.enabled);
   if (!active.length) {
     throw new Error(
-      "No LLM provider configured — set ANTHROPIC_API_KEY, GEMINI_API_KEY, and/or OPENROUTER_API_KEY in .env"
+      "No LLM provider configured — set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, and/or OPENROUTER_API_KEY in .env"
     );
   }
 
@@ -223,4 +249,4 @@ async function completeJSON({ system, prompt, maxTokens = 1000 }) {
   }
 }
 
-module.exports = { complete, completeJSON, ANTHROPIC_MODEL, GEMINI_MODEL, OPENROUTER_MODEL };
+module.exports = { complete, completeJSON, ANTHROPIC_MODEL, GEMINI_MODEL, OPENROUTER_MODEL, OPENAI_MODEL };
