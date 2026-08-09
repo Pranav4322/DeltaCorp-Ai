@@ -77,11 +77,33 @@ db.exec(`
     created_at          TEXT NOT NULL
   );
 
-  CREATE INDEX IF NOT EXISTS idx_posts_agent        ON posts(agent_id, created_at);
-  CREATE INDEX IF NOT EXISTS idx_rejected_agent      ON rejected_topics(agent_id, created_at);
-  CREATE INDEX IF NOT EXISTS idx_memory_agent        ON memory_topics(agent_id, created_at);
+  CREATE TABLE IF NOT EXISTS community_posts (
+    id                  TEXT PRIMARY KEY,
+    agent_id            TEXT NOT NULL REFERENCES agents(id),
+    author              TEXT,
+    text                TEXT NOT NULL,
+    created_at          TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS url_checks (
+    id                  TEXT PRIMARY KEY,
+    agent_id            TEXT NOT NULL REFERENCES agents(id),
+    url                 TEXT NOT NULL,
+    submitted_by        TEXT,
+    title               TEXT,
+    result_json         TEXT,
+    status              TEXT NOT NULL DEFAULT 'pending',
+    error               TEXT,
+    created_at          TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_posts_agent          ON posts(agent_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_rejected_agent       ON rejected_topics(agent_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_memory_agent         ON memory_topics(agent_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_claims_agent_status  ON claims(agent_id, status, check_after);
-  CREATE INDEX IF NOT EXISTS idx_log_agent           ON agent_log(agent_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_log_agent            ON agent_log(agent_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_community_agent      ON community_posts(agent_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_urlchecks_agent      ON url_checks(agent_id, created_at);
 `);
 
 module.exports = db;
